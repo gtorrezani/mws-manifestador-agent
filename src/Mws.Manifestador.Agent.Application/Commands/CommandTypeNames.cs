@@ -4,7 +4,7 @@ namespace Mws.Manifestador.Agent.Application.Commands;
 
 public static class CommandTypeNames
 {
-    private static readonly IReadOnlyDictionary<CommandType, string> Names = new Dictionary<CommandType, string>
+    private static readonly Dictionary<CommandType, string> Names = new()
     {
         [CommandType.SyncFiscalDocuments] = "sync_fiscal_documents",
         [CommandType.ManifestAcknowledgement] = "manifest_acknowledgement",
