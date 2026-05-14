@@ -1,0 +1,60 @@
+name: quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  agent:
+    name: .NET Agent
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore Mws.Manifestador.Agent.sln
+
+      - name: Check forbidden secrets and real fiscal XML fixtures
+        shell: pwsh
+        run: |
+          $forbidden = Get-ChildItem -Recurse -File -Include *.pfx,*.p12,*.key,*.pem,*.cer
+          if ($forbidden) {
+            $forbidden | Select-Object FullName
+            throw "Certificate or key material must not be committed."
+          }
+
+          $xmlFixtures = Get-ChildItem -Path tests -Recurse -File -Include *.xml
+          if ($xmlFixtures) {
+            $xmlFixtures | Select-Object FullName
+            throw "Fiscal XML fixtures must be generated in tests or stored as sanitized non-XML samples."
+          }
+
+      - name: Build
+        run: dotnet build Mws.Manifestador.Agent.sln --configuration Release --no-restore
+
+      - name: Format verification
+        run: dotnet format Mws.Manifestador.Agent.sln --verify-no-changes --no-restore --verbosity diagnostic
+
+      - name: Test
+        run: dotnet test Mws.Manifestador.Agent.sln --configuration Release --no-build --logger trx --results-directory TestResults
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agent-test-results
+          path: TestResults/*.trx
