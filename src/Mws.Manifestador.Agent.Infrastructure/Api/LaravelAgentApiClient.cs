@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Options;
 using Mws.Manifestador.Agent.Application.Commands;
 using Mws.Manifestador.Agent.Application.Configuration;
@@ -147,7 +148,94 @@ public sealed class LaravelAgentApiClient : IAgentApiClient
         }
 
         HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            await ThrowAgentApiExceptionAsync(response, cancellationToken).ConfigureAwait(false);
+        }
+
         return response;
+    }
+
+    private static async Task ThrowAgentApiExceptionAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        string body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        string sanitizedBody = SanitizeResponseBody(body);
+        string? correlationId = GetCorrelationId(response);
+        string message = $"Agent API request failed with status {(int)response.StatusCode} ({response.ReasonPhrase}).";
+
+        throw new AgentApiException(response.StatusCode, sanitizedBody, correlationId, message);
+    }
+
+    private static string? GetCorrelationId(HttpResponseMessage response)
+    {
+        foreach (string headerName in new[] { "X-MWS-Correlation-Id", "X-Correlation-Id", "X-Request-Id" })
+        {
+            if (response.Headers.TryGetValues(headerName, out IEnumerable<string>? values))
+            {
+                return values.FirstOrDefault();
+            }
+        }
+
+        return null;
+    }
+
+    private static string SanitizeResponseBody(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            JsonNode? node = JsonNode.Parse(body);
+            RedactSensitiveValues(node);
+
+            return Truncate(node?.ToJsonString(JsonOptions) ?? string.Empty);
+        }
+        catch (JsonException)
+        {
+            return Truncate(body);
+        }
+    }
+
+    private static void RedactSensitiveValues(JsonNode? node)
+    {
+        if (node is JsonObject jsonObject)
+        {
+            foreach (KeyValuePair<string, JsonNode?> item in jsonObject.ToArray())
+            {
+                if (IsSensitiveKey(item.Key))
+                {
+                    jsonObject[item.Key] = "[redacted]";
+                    continue;
+                }
+
+                RedactSensitiveValues(item.Value);
+            }
+        }
+
+        if (node is JsonArray jsonArray)
+        {
+            foreach (JsonNode? item in jsonArray)
+            {
+                RedactSensitiveValues(item);
+            }
+        }
+    }
+
+    private static bool IsSensitiveKey(string key)
+    {
+        return key.Contains("secret", StringComparison.OrdinalIgnoreCase)
+            || key.Contains("password", StringComparison.OrdinalIgnoreCase)
+            || key.Contains("token", StringComparison.OrdinalIgnoreCase)
+            || key.Contains("pin", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string Truncate(string value)
+    {
+        const int MaxLength = 4096;
+
+        return value.Length <= MaxLength ? value : value[..MaxLength];
     }
 }

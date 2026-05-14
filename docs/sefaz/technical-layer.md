@@ -90,6 +90,10 @@ Manifestation:
 
 These items depend on real validation against official SEFAZ homologation endpoints with valid test certificates and official schema packages. The current automated tests use sanitized XML fixtures and local unit tests only; they do not prove end-to-end acceptance by SEFAZ.
 
+- TODO: Treat the SOAP transport as pending homologation proof; it must not be considered production-final until accepted by real SEFAZ homologation services.
+- TODO: Validate SOAP 1.1 versus SOAP 1.2 requirements per SEFAZ endpoint and make envelope/content-type selection endpoint-aware.
+- TODO: Validate XMLDSig for recipient manifestation events in homologation, including canonicalization, reference URI, transforms and certificate chain behavior.
+- TODO: Externalize SEFAZ endpoint URLs to signed/versioned configuration so endpoint updates do not require code changes.
 - TODO: Validate `NFeDistribuicaoDFe` SOAP envelope, headers, TLS client certificate behavior and response parsing against the official homologation environment.
 - TODO: Validate `NFeRecepcaoEvento` for events `210210`, `210200`, `210220` and `210240` in homologation, including signed `infEvento`, batch limits, protocol extraction and rejection handling.
 - TODO: Confirm every endpoint URL in `SefazEndpointResolver` against the current official NF-e web services list before enabling production.

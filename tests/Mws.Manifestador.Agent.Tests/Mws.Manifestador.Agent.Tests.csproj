@@ -31,4 +31,8 @@
     <ProjectReference Include="..\..\src\Mws.Manifestador.Agent.Sefaz\Mws.Manifestador.Agent.Sefaz.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Fixtures\agent-hmac-contract.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

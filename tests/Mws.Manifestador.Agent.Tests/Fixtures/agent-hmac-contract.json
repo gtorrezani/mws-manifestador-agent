@@ -1,0 +1,10 @@
+{
+  "secret": "contract-secret",
+  "method": "POST",
+  "path": "/api/agent/v1/heartbeat",
+  "timestamp": 1716200000,
+  "nonce": "01234567-89ab-cdef-0123-456789abcdef",
+  "body": "{\"status\":\"online\",\"version\":\"1.2.3\",\"machine_name\":\"MWS-CLIENTE\"}",
+  "body_sha256": "78ebce2483c9efb3b7b3a87c3a2bf2f9d42ce72c54d69a73bed38e64e329c802",
+  "signature": "650292b8de7cebc9a38c88f035f096478080c8454e1892694bb258f514f34f07"
+}
