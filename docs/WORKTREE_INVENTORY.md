@@ -214,4 +214,3 @@ Watch items before committing functional blocks:
 - `installer/wix/Package.wxs`: verify shortcut scope and uninstall behavior.
 - `scripts/build-installer.ps1`: installer build may generate artifacts under `artifacts/`; those must remain untracked.
 - Line ending warnings appeared for several text files because local Git is configured to rewrite LF as CRLF on checkout. Avoid committing purely line-ending churn unless a formatter requires it.
-
