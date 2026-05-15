@@ -26,7 +26,7 @@ public sealed class ListCertificatesCommandHandlerTests
     {
         ListCertificatesCommandHandler handler = new(new FakeCertificateProvider([
             CreateSummary("ABC123456789", DateTimeOffset.Parse("2025-01-01T00:00:00Z", CultureInfo.InvariantCulture), DateTimeOffset.Parse("2030-01-01T00:00:00Z", CultureInfo.InvariantCulture), true, CertificateStoreScope.CurrentUser, "12345678000195"),
-            CreateSummary("DEF987654321", DateTimeOffset.Parse("2023-01-01T00:00:00Z", CultureInfo.InvariantCulture), DateTimeOffset.Parse("2024-01-01T00:00:00Z", CultureInfo.InvariantCulture), false, CertificateStoreScope.LocalMachine, "98765432000110", "CN=Certificado Vencido:98765432000110", "SERIAL002"),
+            CreateSummary("DEF987654321", DateTimeOffset.Parse("2023-01-01T00:00:00Z", CultureInfo.InvariantCulture), DateTimeOffset.Parse("2024-01-01T00:00:00Z", CultureInfo.InvariantCulture), false, CertificateStoreScope.LocalMachine, "98765432000110", "CN=Certificado Vencido:98765432000110", "SERIAL002", false, "expired_fiscal", ["Certificado vencido."]),
         ]));
 
         CommandExecutionOutcome outcome = await handler.ExecuteAsync(CreateCommand(), CancellationToken.None);
@@ -40,33 +40,67 @@ public sealed class ListCertificatesCommandHandlerTests
     }
 
     [Fact]
-    public async Task ExecuteAsyncMarksExpiredCertificatesAsInvalid()
+    public async Task ExecuteAsyncOmitsExpiredCertificatesByDefault()
     {
         ListCertificatesCommandHandler handler = new(new FakeCertificateProvider([
-            CreateSummary("ABC", DateTimeOffset.UtcNow.AddYears(-2), DateTimeOffset.UtcNow.AddDays(-1), true, CertificateStoreScope.CurrentUser, null),
+            CreateSummary("ABC", DateTimeOffset.UtcNow.AddYears(-2), DateTimeOffset.UtcNow.AddDays(-1), true, CertificateStoreScope.CurrentUser, "12345678000195", classification: "expired_fiscal", rejectionReasons: ["Certificado vencido."]),
         ]));
 
         CommandExecutionOutcome outcome = await handler.ExecuteAsync(CreateCommand(), CancellationToken.None);
 
-        ListedCertificate certificate = ExtractCertificates(outcome).Single();
-        certificate.IsExpired.Should().BeTrue();
-        certificate.IsValid.Should().BeFalse();
-        certificate.ValidationMessage.Should().Be("Certificate is expired.");
+        ExtractCertificates(outcome).Should().BeEmpty();
     }
 
     [Fact]
-    public async Task ExecuteAsyncKeepsCertificatesWithoutPrivateKeyInList()
+    public async Task ExecuteAsyncIncludesRejectedCertificatesWhenRequested()
     {
         ListCertificatesCommandHandler handler = new(new FakeCertificateProvider([
-            CreateSummary("ABC", DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1), false, CertificateStoreScope.CurrentUser, null),
+            CreateSummary("ABC", DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1), false, CertificateStoreScope.CurrentUser, null, isFiscalCandidate: false, classification: "missing_private_key", rejectionReasons: ["Certificado sem chave privada."]),
         ]));
 
-        CommandExecutionOutcome outcome = await handler.ExecuteAsync(CreateCommand(), CancellationToken.None);
+        CommandExecutionOutcome outcome = await handler.ExecuteAsync(CreateCommand(includeRejected: true), CancellationToken.None);
 
         ListedCertificate certificate = ExtractCertificates(outcome).Single();
         certificate.HasPrivateKey.Should().BeFalse();
         certificate.IsValid.Should().BeFalse();
-        certificate.ValidationMessage.Should().Be("Certificate does not have a private key.");
+        certificate.Classification.Should().Be("missing_private_key");
+        certificate.ValidationMessage.Should().Be("Certificado sem chave privada.");
+    }
+
+    [Fact]
+    public async Task ExecuteAsyncIncludesExpiredFiscalCertificatesWhenRequested()
+    {
+        ListCertificatesCommandHandler handler = new(new FakeCertificateProvider([
+            CreateSummary("ABC", DateTimeOffset.UtcNow.AddYears(-2), DateTimeOffset.UtcNow.AddDays(-1), true, CertificateStoreScope.CurrentUser, "12345678000195", isFiscalCandidate: false, classification: "expired_fiscal", rejectionReasons: ["Certificado vencido."]),
+        ]));
+
+        CommandExecutionOutcome outcome = await handler.ExecuteAsync(CreateCommand(includeExpired: true), CancellationToken.None);
+
+        ListedCertificate certificate = ExtractCertificates(outcome).Single();
+        certificate.IsExpired.Should().BeTrue();
+        certificate.IsValid.Should().BeFalse();
+        certificate.Classification.Should().Be("expired_fiscal");
+        certificate.ValidationMessage.Should().Be("Certificate is expired.");
+    }
+
+    [Fact]
+    public async Task ExecuteAsyncDoesNotExposeSensitiveMaterialFields()
+    {
+        ListCertificatesCommandHandler handler = new(new FakeCertificateProvider([
+            CreateSummary("ABC123456789", DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1), true, CertificateStoreScope.CurrentUser, "12345678000195"),
+        ]));
+
+        CommandExecutionOutcome outcome = await handler.ExecuteAsync(CreateCommand(includeRejected: true, includeExpired: true), CancellationToken.None);
+
+        string json = JsonSerializer.Serialize(outcome.Result?.Result, JsonOptions);
+        json.Should().NotContain("password");
+        json.Should().NotContain("senha");
+        json.Should().NotContain("pin");
+        json.Should().NotContain("private key");
+        json.Should().NotContain("pfx");
+        json.Should().NotContain("pem");
+        json.Should().NotContain("hmac");
+        json.Should().NotContain("activation_code");
     }
 
     [Fact]
@@ -80,9 +114,14 @@ public sealed class ListCertificatesCommandHandlerTests
         outcome.Failure?.ErrorCode.Should().Be("CERTIFICATE_STORE_LIST_FAILED");
     }
 
-    private static AgentCommand CreateCommand()
+    private static AgentCommand CreateCommand(bool includeRejected = false, bool includeExpired = false)
     {
-        using JsonDocument payload = JsonDocument.Parse("{}");
+        using JsonDocument payload = JsonDocument.Parse($$"""
+            {
+              "include_rejected": {{JsonSerializer.Serialize(includeRejected)}},
+              "include_expired": {{JsonSerializer.Serialize(includeExpired)}}
+            }
+            """);
 
         return new AgentCommand(
             Guid.NewGuid(),
@@ -103,19 +142,32 @@ public sealed class ListCertificatesCommandHandlerTests
         CertificateStoreScope storeScope,
         string? cnpj,
         string subject = "CN=Empresa Teste:12345678000195",
-        string serialNumber = "SERIAL001")
+        string serialNumber = "SERIAL001",
+        bool isFiscalCandidate = true,
+        string classification = "fiscal_candidate",
+        IReadOnlyCollection<string>? rejectionReasons = null)
     {
         return new CertificateSummary(
             CertificateReference.A3(thumbprint, storeScope, cnpj),
             subject,
-            "CN=AC Teste",
+            "CN=AC SOLUTI ICP-Brasil",
             thumbprint,
             serialNumber,
             notBefore,
             notAfter,
             hasPrivateKey,
             cnpj,
-            storeScope);
+            storeScope,
+            "Empresa Teste",
+            cnpj,
+            "cnpj",
+            false,
+            true,
+            true,
+            isFiscalCandidate,
+            classification,
+            rejectionReasons,
+            isFiscalCandidate ? ["Tipo A1/A3 nao confirmado automaticamente."] : []);
     }
 
     private static IReadOnlyCollection<ListedCertificate> ExtractCertificates(CommandExecutionOutcome outcome)

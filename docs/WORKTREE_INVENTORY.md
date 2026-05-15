@@ -263,3 +263,55 @@ Commit target: `feat: add sanitized local agent status`
 ### Next recommended block
 
 Next prompt: create `feat: enhance windows certificate inventory classification`, limited to certificate summary/validator/list command/provider, the certificate fixture, and directly related tests.
+
+## Rodada 2 - Certificate Inventory Classification
+
+Execution date: 2026-05-15
+
+Commit target: `feat: enhance windows certificate inventory classification`
+
+### Files selected for the commit
+
+- `src/Mws.Manifestador.Agent.Application/Certificates/CertificateSummary.cs`
+- `src/Mws.Manifestador.Agent.Application/Certificates/CertificateValidator.cs`
+- `src/Mws.Manifestador.Agent.Application/Commands/ListCertificatesCommandHandler.cs`
+- `src/Mws.Manifestador.Agent.Application/Commands/ListedCertificate.cs`
+- `src/Mws.Manifestador.Agent.Sefaz/Certificates/WindowsCertificateProvider.cs`
+- `tests/Fixtures/list-certificates-result.json`
+- `tests/Mws.Manifestador.Agent.Tests/Application/AgentDiagnosticsCommandHandlerTests.cs`
+- `tests/Mws.Manifestador.Agent.Tests/Application/ListCertificatesCommandHandlerTests.cs`
+- `tests/Mws.Manifestador.Agent.Tests/Application/TestCertificateCommandHandlerTests.cs`
+- `tests/Mws.Manifestador.Agent.Tests/Certificates/CertificateValidatorTests.cs`
+- `tests/Mws.Manifestador.Agent.Tests/Sefaz/TestSefazConnectivityCommandHandlerTests.cs`
+- `tests/Mws.Manifestador.Agent.Tests/Sefaz/WindowsCertificateProviderClassificationTests.cs`
+- `docs/WORKTREE_INVENTORY.md`
+
+### Behavior implemented
+
+- Extends certificate inventory summaries and listed-certificate payloads with safe diagnostic fields: common name, document, document type, store name/location, validity dates, private-key presence flag, ICP-Brasil flag, client-auth compatibility, CA flag, fiscal-candidate flag, classification, rejection reasons, and warnings.
+- Classifies Windows Store certificates deterministically as `fiscal_candidate`, `expired_fiscal`, `missing_private_key`, `ca_certificate`, `system_certificate`, or `unknown`.
+- Extracts CPF/CNPJ-like documents from certificate subject/extension text without exporting private material.
+- Uses ICP-Brasil OID prefix and known issuer keywords as classification signals.
+- Uses EKU/KU checks to reject certificates that are not suitable for client authentication/signature use.
+- Filters `list-certificates` output to fiscal candidates by default, while supporting `include_rejected` and `include_expired` diagnostics flags.
+- Keeps payload free from certificate private material, PIN, password, PFX/P12/PEM contents, HMAC secret, activation code, and fiscal XML.
+
+### Scope decisions
+
+- `WindowsCertificateProvider` lives under the Sefaz project, but only certificate inventory/classification code was included. No XML, SOAP, distribution, manifestation, or SEFAZ transport logic was changed.
+- Tray Monitor, Configurator, installer/WiX, LocalStatus, and broad installation documentation were left out.
+- Certificate tests use synthetic in-memory certificates and sanitized fixtures only.
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git status -sb` | Confirmed branch `codex/agent-worktree-inventory` with pending non-certificate blocks still dirty. |
+| `git diff --name-status` | Confirmed broader dirty worktree and selected only certificate/listing/test/inventory files for this round. |
+| `git diff -- src/Mws.Manifestador.Agent.Application/Certificates src/Mws.Manifestador.Agent.Application/Commands/ListCertificatesCommandHandler.cs src/Mws.Manifestador.Agent.Application/Commands/ListedCertificate.cs src/Mws.Manifestador.Agent.Domain/Certificates src/Mws.Manifestador.Agent.Infrastructure/Certificates src/Mws.Manifestador.Agent.Sefaz/Certificates tests` | Reviewed the certificate block before staging. |
+| `dotnet test Mws.Manifestador.Agent.sln --configuration Release --filter FullyQualifiedName~Certificate` | Passed: 29 tests, 0 failures, 0 skipped. |
+| `dotnet test Mws.Manifestador.Agent.sln --configuration Release --filter FullyQualifiedName~ListCertificates` | Passed: 6 tests, 0 failures, 0 skipped. |
+
+### Next recommended block
+
+Next prompt: create `feat: improve agent configurator local operations`, limited to the Configurator XAML/code-behind changes that consume the LocalStatus service. Keep Tray and installer packaging out of that commit.
