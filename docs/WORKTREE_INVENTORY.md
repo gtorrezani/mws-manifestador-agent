@@ -358,3 +358,53 @@ Commit target: `feat: improve agent configurator local operations`
 ### Next recommended block
 
 Next prompt: create `feat: add agent tray monitor`, limited to `Mws.Manifestador.Agent.sln`, `src/Mws.Manifestador.Agent.Tray/*`, and inventory update. Keep installer/WiX and docs broad changes out of that commit.
+
+## Rodada 4 - Tray Monitor
+
+Execution date: 2026-05-15
+
+Commit target: `feat: add agent tray monitor`
+
+### Files selected for the commit
+
+- `Mws.Manifestador.Agent.sln`
+- `src/Mws.Manifestador.Agent.Tray/Mws.Manifestador.Agent.Tray.csproj`
+- `src/Mws.Manifestador.Agent.Tray/Program.cs`
+- `src/Mws.Manifestador.Agent.Tray/TrayApplicationContext.cs`
+- `src/Mws.Manifestador.Agent.Tray/TrayResources.cs`
+- `docs/WORKTREE_INVENTORY.md`
+
+### Behavior implemented
+
+- Adds a lightweight WinForms tray process that uses `NotifyIcon`.
+- Reads only sanitized local status through the already committed `AgentLocalStatusService`.
+- Shows service/activation state in the tray context menu and icon tooltip.
+- Provides local actions to open the Configurator, start/restart/stop the service, open the logs directory, copy basic diagnostics, and exit the monitor.
+- Refreshes status on a timer and when the menu opens.
+- Handles missing/unavailable status or service-control failures with clear user-facing messages instead of crashing.
+- Does not require network access to start.
+
+### Scope decisions
+
+- Installer/WiX and build script changes remain out of this commit.
+- Broad installation documentation remains out of this commit.
+- Configurator, Worker, LocalStatus infrastructure, certificate classification/listing, SEFAZ, XML, and SOAP are unchanged in this round.
+- Generated `bin/` and `obj/` artifacts under the untracked Tray project directory were removed before staging and were not committed.
+- No HMAC secret, activation code, password, PIN, private key, PFX/P12/PEM material, token, or fiscal XML was added.
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git status -sb` | Confirmed branch `codex/agent-worktree-inventory` with remaining Tray, installer/WiX, and docs blocks. |
+| `git diff --name-status` | Confirmed tracked pending files before selecting the Tray block. |
+| `git diff -- Mws.Manifestador.Agent.sln src/Mws.Manifestador.Agent.Tray` | Reviewed solution and Tray project scope before staging. |
+| `rg -n "secret|token|password|senha|pin|private key|pfx|p12|pem|xml" src/Mws.Manifestador.Agent.Tray` | No matches found in Tray source files. |
+| `Remove-Item` scoped to `src/Mws.Manifestador.Agent.Tray\bin` and `obj` | Removed generated build artifacts from the untracked Tray project directory. |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality.ps1` | Initially failed inside the Tray block on CA1303 for a literal status-unavailable message and line-ending format. |
+| `dotnet format Mws.Manifestador.Agent.sln --include ...Tray... docs/WORKTREE_INVENTORY.md` | Passed and normalized formatting for the Tray/inventory files. |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality.ps1` | Passed after the Tray resource/format fix: build Release 0 warnings, 0 errors; tests 85 passed, 0 failed, 0 skipped. |
+
+### Next recommended block
+
+Next prompt: create `feat: package tray monitor in windows installer`, limited to `installer/wix/Package.wxs`, `scripts/build-installer.ps1`, and inventory update. Keep broad docs in the final docs commit.
