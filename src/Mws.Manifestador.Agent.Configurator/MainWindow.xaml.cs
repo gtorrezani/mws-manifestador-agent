@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.IO;
 using System.Net.Http;
-using System.ServiceProcess;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -9,8 +8,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Mws.Manifestador.Agent.Application;
+using Mws.Manifestador.Agent.Application.DTOs;
 using Mws.Manifestador.Agent.Application.Services;
 using Mws.Manifestador.Agent.Infrastructure;
+using Mws.Manifestador.Agent.Infrastructure.LocalStatus;
 using Mws.Manifestador.Agent.Sefaz;
 
 namespace Mws.Manifestador.Agent.Configurator;
@@ -20,16 +21,18 @@ namespace Mws.Manifestador.Agent.Configurator;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private const string ServiceName = "MWSManifestadorAgent";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
     };
 
+    private readonly AgentLocalStatusService localStatusService = new();
+
     public MainWindow()
     {
         InitializeComponent();
         LoadExistingApiBaseUrl();
+        RefreshLocalStatus();
     }
 
     private async void TestConnectionButton_Click(object sender, RoutedEventArgs e)
@@ -47,6 +50,21 @@ public partial class MainWindow : Window
         await RunOperationAsync(RestartServiceButton, RestartServiceAsync).ConfigureAwait(true);
     }
 
+    private async void StartServiceButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunOperationAsync(StartServiceButton, StartServiceAsync).ConfigureAwait(true);
+    }
+
+    private async void OpenLogsButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunOperationAsync(OpenLogsButton, OpenLogsAsync).ConfigureAwait(true);
+    }
+
+    private void RefreshStatusButton_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshLocalStatus();
+    }
+
     private async Task RunOperationAsync(Button button, Func<Task> operation)
     {
         ArgumentNullException.ThrowIfNull(button);
@@ -59,11 +77,12 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
-            SetStatus("Falha: " + exception.Message);
+            SetOperationStatus("Falha: " + FriendlyMessage(exception));
         }
         finally
         {
             button.IsEnabled = true;
+            RefreshLocalStatus();
         }
     }
 
@@ -77,7 +96,7 @@ public partial class MainWindow : Window
         };
 
         using HttpResponseMessage response = await client.GetAsync(new Uri("/", UriKind.Relative), CancellationToken.None).ConfigureAwait(true);
-        SetStatus(string.Create(CultureInfo.InvariantCulture, $"Conexao alcancou a API. HTTP {(int)response.StatusCode}."));
+        SetOperationStatus(string.Create(CultureInfo.InvariantCulture, $"Conexao alcancou a API. HTTP {(int)response.StatusCode}."));
     }
 
     private async Task ActivateAsync()
@@ -102,26 +121,41 @@ public partial class MainWindow : Window
 
         await using ServiceProvider provider = services.BuildServiceProvider();
         AgentActivationService activationService = provider.GetRequiredService<AgentActivationService>();
-        await activationService.EnsureActivatedAsync(CancellationToken.None).ConfigureAwait(true);
+        AgentCredentials? credentials = await activationService.EnsureActivatedAsync(CancellationToken.None).ConfigureAwait(true);
         WriteLocalConfiguration(apiBaseUrl);
+        await localStatusService.WriteStatusAsync(
+            new AgentLocalStatusUpdate
+            {
+                AgentId = credentials?.AgentId.ToString("D"),
+                ApiBaseUrl = apiBaseUrl,
+                Activated = credentials is not null,
+            },
+            CancellationToken.None).ConfigureAwait(true);
+
         ActivationCodeTextBox.Clear();
-        SetStatus("Agent ativado. Credenciais salvas com DPAPI. Reinicie o servico para usar a nova configuracao.");
+        SetOperationStatus("Agent ativado. Credenciais salvas com DPAPI. Reinicie o servico para usar a nova configuracao.");
     }
 
     private Task RestartServiceAsync()
     {
-        using ServiceController service = new(ServiceName);
-        TimeSpan timeout = TimeSpan.FromSeconds(30);
+        localStatusService.RestartService(TimeSpan.FromSeconds(30));
+        SetOperationStatus("Servico reiniciado. Aguarde o status Online na Web apos o proximo heartbeat.");
 
-        if (service.Status is ServiceControllerStatus.Running or ServiceControllerStatus.StartPending)
-        {
-            service.Stop();
-            service.WaitForStatus(ServiceControllerStatus.Stopped, timeout);
-        }
+        return Task.CompletedTask;
+    }
 
-        service.Start();
-        service.WaitForStatus(ServiceControllerStatus.Running, timeout);
-        SetStatus("Servico iniciado. Aguarde o status Online na Web apos o proximo heartbeat.");
+    private Task StartServiceAsync()
+    {
+        localStatusService.StartService(TimeSpan.FromSeconds(30));
+        SetOperationStatus("Servico iniciado. Aguarde o status Online na Web apos o proximo heartbeat.");
+
+        return Task.CompletedTask;
+    }
+
+    private Task OpenLogsAsync()
+    {
+        localStatusService.OpenLogsDirectory();
+        SetOperationStatus("Pasta de logs aberta.");
 
         return Task.CompletedTask;
     }
@@ -150,23 +184,11 @@ public partial class MainWindow : Window
         return value;
     }
 
-    private static string ProgramDataDirectory()
+    private void WriteLocalConfiguration(Uri apiBaseUrl)
     {
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            "MWS Manifestador Agent");
-    }
-
-    private static string LocalConfigurationPath()
-    {
-        return Path.Combine(ProgramDataDirectory(), "appsettings.Local.json");
-    }
-
-    private static void WriteLocalConfiguration(Uri apiBaseUrl)
-    {
-        Directory.CreateDirectory(ProgramDataDirectory());
-        Directory.CreateDirectory(Path.Combine(ProgramDataDirectory(), "logs"));
-        Directory.CreateDirectory(Path.Combine(ProgramDataDirectory(), "temp"));
+        Directory.CreateDirectory(localStatusService.ProgramDataDirectory);
+        Directory.CreateDirectory(localStatusService.LogsDirectory);
+        Directory.CreateDirectory(Path.Combine(localStatusService.ProgramDataDirectory, "temp"));
 
         object payload = new
         {
@@ -184,7 +206,7 @@ public partial class MainWindow : Window
                         Name = "File",
                         Args = new
                         {
-                            Path = Path.Combine(ProgramDataDirectory(), "logs", "mws-agent-.log"),
+                            Path = Path.Combine(localStatusService.LogsDirectory, "mws-agent-.log"),
                             RollingInterval = "Day",
                             RetainedFileCountLimit = 30,
                         },
@@ -193,12 +215,12 @@ public partial class MainWindow : Window
             },
         };
 
-        File.WriteAllText(LocalConfigurationPath(), JsonSerializer.Serialize(payload, JsonOptions));
+        File.WriteAllText(localStatusService.LocalConfigurationPath, JsonSerializer.Serialize(payload, JsonOptions));
     }
 
     private void LoadExistingApiBaseUrl()
     {
-        string path = LocalConfigurationPath();
+        string path = localStatusService.LocalConfigurationPath;
         if (!File.Exists(path))
         {
             return;
@@ -216,12 +238,44 @@ public partial class MainWindow : Window
         }
         catch (JsonException)
         {
-            SetStatus("Configuracao local existente nao pode ser lida. Informe a URL da API novamente.");
+            SetOperationStatus("Configuracao local existente nao pode ser lida. Informe a URL da API novamente.");
         }
     }
 
-    private void SetStatus(string message)
+    private void RefreshLocalStatus()
     {
-        StatusTextBlock.Text = message;
+        AgentLocalStatusSnapshot status = localStatusService.ReadStatus();
+        LocalStatusTextBlock.Text = string.Join(
+            Environment.NewLine,
+            $"Servico: {status.ServiceStatus}",
+            $"Ativado: {(status.Activated ? "Sim" : "Nao")}",
+            $"API: {status.ApiBaseUrl?.ToString() ?? "Nao configurada"}",
+            $"Installation ID: {status.InstallationId ?? "Nao informado"}",
+            $"Agent ID: {status.AgentId ?? "Nao informado"}",
+            $"Versao: {status.Version ?? "Nao informada"}",
+            $"Ultimo heartbeat: {FormatDate(status.LastHeartbeatAt)}",
+            $"Ultimo polling: {FormatDate(status.LastPollAt)}",
+            $"Ultimo erro: {status.LastErrorMessage ?? "Nenhum"}",
+            $"Logs: {localStatusService.LogsDirectory}");
+    }
+
+    private void SetOperationStatus(string message)
+    {
+        OperationStatusTextBlock.Text = message;
+    }
+
+    private static string FormatDate(DateTimeOffset? value)
+    {
+        return value?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture) ?? "Nao informado";
+    }
+
+    private static string FriendlyMessage(Exception exception)
+    {
+        if (exception is UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            return "A acao pode exigir execucao como administrador. Abra o Configurador como administrador e tente novamente.";
+        }
+
+        return exception.Message;
     }
 }

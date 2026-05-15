@@ -315,3 +315,46 @@ Commit target: `feat: enhance windows certificate inventory classification`
 ### Next recommended block
 
 Next prompt: create `feat: improve agent configurator local operations`, limited to the Configurator XAML/code-behind changes that consume the LocalStatus service. Keep Tray and installer packaging out of that commit.
+
+## Rodada 3 - Configurator Local Operations
+
+Execution date: 2026-05-15
+
+Commit target: `feat: improve agent configurator local operations`
+
+### Files selected for the commit
+
+- `src/Mws.Manifestador.Agent.Configurator/MainWindow.xaml`
+- `src/Mws.Manifestador.Agent.Configurator/MainWindow.xaml.cs`
+- `docs/WORKTREE_INVENTORY.md`
+
+### Behavior implemented
+
+- Expands the Configurator window to display local operational status from the already committed `AgentLocalStatusService`.
+- Splits UI feedback into local status and operation status so activation/service actions do not overwrite diagnostic context.
+- Adds local operation buttons for service restart, service start, log-folder opening, and status refresh.
+- Reuses `AgentLocalStatusService` for ProgramData paths, local status reads, service control, and log directory opening.
+- Writes sanitized activation status after activation and clears the activation-code field after use.
+- Keeps persisted local configuration free of activation code by writing `ActivationCode = null`.
+- Shows administrator-permission guidance for service-control failures.
+
+### Scope decisions
+
+- Tray Monitor remains out of this commit.
+- Installer/WiX and build script changes remain out of this commit.
+- Broad installation documentation remains out of this commit.
+- Certificate classification/listing, LocalStatus infrastructure, Worker, SEFAZ, XML, and SOAP are unchanged in this round.
+- No real URL, HMAC secret, activation code, PIN, password, certificate payload, or XML fiscal data was added.
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git status -sb` | Confirmed branch `codex/agent-worktree-inventory` with pending Tray, installer/WiX, and docs blocks still dirty. |
+| `git diff --name-status` | Confirmed only Configurator, Tray, installer/WiX, solution, and docs blocks remain pending before this round. |
+| `git diff -- src/Mws.Manifestador.Agent.Configurator/MainWindow.xaml src/Mws.Manifestador.Agent.Configurator/MainWindow.xaml.cs` | Reviewed the Configurator diff before staging. |
+| `rg -n -i "secret|token|password|senha|pin|private|pfx|pem|xml|activation|codigo|código|http://|https://" src/Mws.Manifestador.Agent.Configurator/MainWindow.xaml src/Mws.Manifestador.Agent.Configurator/MainWindow.xaml.cs` | Found only expected placeholder URL, activation-code labels/configuration keys, and security guidance text. No secret value found. |
+
+### Next recommended block
+
+Next prompt: create `feat: add agent tray monitor`, limited to `Mws.Manifestador.Agent.sln`, `src/Mws.Manifestador.Agent.Tray/*`, and inventory update. Keep installer/WiX and docs broad changes out of that commit.
