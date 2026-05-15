@@ -9,7 +9,40 @@ namespace Mws.Manifestador.Agent.Sefaz.Certificates;
 
 public sealed class WindowsCertificateProvider : ICertificateProvider
 {
-    private static readonly Regex CnpjRegex = new(@"(?<!\d)\d{14}(?!\d)", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+    private const string ClientAuthenticationOid = "1.3.6.1.5.5.7.3.2";
+    private const string IcpBrasilOidPrefix = "2.16.76.1.";
+
+    private static readonly Regex CnpjRegex = new(@"(?<!\d)(\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2})(?!\d)", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+    private static readonly Regex CpfRegex = new(@"(?<!\d)(\d{3}\.?\d{3}\.?\d{3}-?\d{2})(?!\d)", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+
+    private static readonly string[] IcpBrasilKeywords =
+    [
+        "ICP-Brasil",
+        "AC SOLUTI",
+        "Receita Federal",
+        "RFB",
+        "Serasa",
+        "Certisign",
+        "Valid",
+        "Safeweb",
+        "SERPRO",
+        "Fenacon",
+        "DigitalSign",
+        "PRODEMGE",
+        "Caixa Economica Federal",
+        "Autoridade Certificadora",
+    ];
+
+    private static readonly string[] SystemCertificateKeywords =
+    [
+        "Microsoft",
+        "Windows Admin Center",
+        "WindowsAdminCenter",
+        "Windows Admin",
+        "localhost",
+        "Self-Signed",
+        "Remote Desktop",
+    ];
 
     private static readonly Action<ILogger, CertificateStoreScope, string, Exception?> LogStoreOpenFailed =
         LoggerMessage.Define<CertificateStoreScope, string>(LogLevel.Warning, new EventId(4000, nameof(LogStoreOpenFailed)), "Failed to open certificate store {StoreScope}: {ErrorMessage}");
@@ -32,7 +65,8 @@ public sealed class WindowsCertificateProvider : ICertificateProvider
         return Task.FromResult<IReadOnlyCollection<CertificateSummary>>(certificates
             .GroupBy(static certificate => new { certificate.Thumbprint, certificate.StoreScope })
             .Select(static group => group.First())
-            .OrderBy(static certificate => certificate.Subject, StringComparer.Ordinal)
+            .OrderByDescending(static certificate => certificate.IsFiscalCandidate)
+            .ThenBy(static certificate => certificate.Subject, StringComparer.Ordinal)
             .ToArray());
     }
 
@@ -43,7 +77,7 @@ public sealed class WindowsCertificateProvider : ICertificateProvider
 
         if (reference.Kind != CertificateKind.A3)
         {
-            throw new NotSupportedException("Only A3 certificates from Windows Certificate Store are supported by this provider. A1 PFX support must use a separate provider and protected secret.");
+            throw new NotSupportedException("Only fiscal certificates from Windows Certificate Store are supported by this provider. A1 PFX support must use a separate provider and protected secret.");
         }
 
         X509Certificate2? certificate = reference.StoreScope switch
@@ -70,10 +104,10 @@ public sealed class WindowsCertificateProvider : ICertificateProvider
                 string.Equals(item.Thumbprint, reference.Thumbprint, StringComparison.OrdinalIgnoreCase) &&
                 (reference.StoreScope is null || item.StoreScope == reference.StoreScope));
 
-        if (summary?.NotAfter < DateTimeOffset.UtcNow)
+        if (summary is null || !summary.IsFiscalCandidate)
         {
             certificate.Dispose();
-            throw new CertificateProviderException(CertificateErrorCode.CertificateExpired, "Certificate is expired.");
+            throw new CertificateProviderException(CertificateErrorCode.CertificateInvalid, summary?.RejectionReasons?.FirstOrDefault() ?? "Certificate is not a usable ICP-Brasil fiscal certificate.");
         }
 
         ValidatePrivateKeyAccess(certificate);
@@ -127,7 +161,18 @@ public sealed class WindowsCertificateProvider : ICertificateProvider
     private static CertificateSummary ToSummary(X509Certificate2 certificate, CertificateStoreScope scope)
     {
         string thumbprint = CertificateReference.NormalizeThumbprint(certificate.Thumbprint);
-        string? cnpj = ExtractCnpj(certificate);
+        string searchableText = SearchableCertificateText(certificate);
+        (string? document, string? documentType) = ExtractDocument(searchableText);
+        string? cnpj = string.Equals(documentType, "cnpj", StringComparison.Ordinal) ? document : null;
+        bool isExpired = new DateTimeOffset(certificate.NotAfter) < DateTimeOffset.UtcNow;
+        bool notYetValid = new DateTimeOffset(certificate.NotBefore) > DateTimeOffset.UtcNow;
+        bool isCertificateAuthority = IsCertificateAuthority(certificate);
+        bool isIcpBrasil = IsIcpBrasil(certificate, searchableText);
+        bool isUsableForClientAuth = IsUsableForClientAuth(certificate);
+        bool isSystemCertificate = ContainsAny(searchableText, SystemCertificateKeywords) && !isIcpBrasil;
+        List<string> rejectionReasons = GetRejectionReasons(certificate, isExpired, notYetValid, isCertificateAuthority, isIcpBrasil, isUsableForClientAuth, document);
+        bool isFiscalCandidate = rejectionReasons.Count == 0;
+        string classification = Classification(isFiscalCandidate, isExpired, isCertificateAuthority, certificate.HasPrivateKey, isSystemCertificate, isIcpBrasil, document);
         CertificateReference reference = CertificateReference.A3(thumbprint, scope, cnpj);
 
         return new CertificateSummary(
@@ -140,34 +185,189 @@ public sealed class WindowsCertificateProvider : ICertificateProvider
             new DateTimeOffset(certificate.NotAfter),
             certificate.HasPrivateKey,
             cnpj,
-            scope);
+            scope,
+            CommonName(certificate),
+            document,
+            documentType,
+            isCertificateAuthority,
+            isIcpBrasil,
+            isUsableForClientAuth,
+            isFiscalCandidate,
+            classification,
+            rejectionReasons,
+            isFiscalCandidate ? ["Tipo A1/A3 nao confirmado automaticamente."] : []);
     }
 
-    private static string? ExtractCnpj(X509Certificate2 certificate)
+    private static List<string> GetRejectionReasons(
+        X509Certificate2 certificate,
+        bool isExpired,
+        bool notYetValid,
+        bool isCertificateAuthority,
+        bool isIcpBrasil,
+        bool isUsableForClientAuth,
+        string? document)
     {
-        string? subjectCnpj = ExtractCnpj(certificate.Subject);
-        if (subjectCnpj is not null)
+        List<string> rejectionReasons = [];
+        AddRejectionReason(rejectionReasons, !certificate.HasPrivateKey, "Certificado sem chave privada.");
+        AddRejectionReason(rejectionReasons, isExpired, "Certificado vencido.");
+        AddRejectionReason(rejectionReasons, notYetValid, "Certificado ainda nao esta valido.");
+        AddRejectionReason(rejectionReasons, isCertificateAuthority, "Certificado de autoridade certificadora.");
+        AddRejectionReason(rejectionReasons, !isIcpBrasil, "Emissor/cadeia nao indica ICP-Brasil.");
+        AddRejectionReason(rejectionReasons, document is null, "CPF/CNPJ nao identificado no certificado.");
+        AddRejectionReason(rejectionReasons, !isUsableForClientAuth, "Uso do certificado nao e compativel com autenticacao/assinatura de cliente.");
+
+        return rejectionReasons;
+    }
+
+    private static void AddRejectionReason(List<string> rejectionReasons, bool condition, string message)
+    {
+        if (condition)
         {
-            return subjectCnpj;
+            rejectionReasons.Add(message);
         }
+    }
+
+    private static string Classification(
+        bool isFiscalCandidate,
+        bool isExpired,
+        bool isCertificateAuthority,
+        bool hasPrivateKey,
+        bool isSystemCertificate,
+        bool isIcpBrasil,
+        string? document)
+    {
+        if (isFiscalCandidate)
+        {
+            return "fiscal_candidate";
+        }
+
+        if (isExpired && (isIcpBrasil || document is not null))
+        {
+            return "expired_fiscal";
+        }
+
+        if (isCertificateAuthority)
+        {
+            return "ca_certificate";
+        }
+
+        if (!hasPrivateKey)
+        {
+            return "missing_private_key";
+        }
+
+        if (isSystemCertificate)
+        {
+            return "system_certificate";
+        }
+
+        return "unknown";
+    }
+
+    private static bool IsCertificateAuthority(X509Certificate2 certificate)
+    {
+        return certificate.Extensions
+            .OfType<X509BasicConstraintsExtension>()
+            .Any(static extension => extension.CertificateAuthority);
+    }
+
+    private static bool IsUsableForClientAuth(X509Certificate2 certificate)
+    {
+        X509EnhancedKeyUsageExtension? enhancedKeyUsage = certificate.Extensions
+            .OfType<X509EnhancedKeyUsageExtension>()
+            .FirstOrDefault();
+
+        bool clientAuthAllowed = enhancedKeyUsage is null ||
+            enhancedKeyUsage.EnhancedKeyUsages
+                .Cast<Oid>()
+                .Any(static oid => string.Equals(oid.Value, ClientAuthenticationOid, StringComparison.Ordinal));
+
+        X509KeyUsageExtension? keyUsage = certificate.Extensions
+            .OfType<X509KeyUsageExtension>()
+            .FirstOrDefault();
+
+        bool signatureAllowed = keyUsage is null ||
+            (keyUsage.KeyUsages & (X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation)) != X509KeyUsageFlags.None;
+
+        return clientAuthAllowed && signatureAllowed;
+    }
+
+    private static bool IsIcpBrasil(X509Certificate2 certificate, string searchableText)
+    {
+        return ContainsAny(searchableText, IcpBrasilKeywords) ||
+            certificate.Extensions.Any(static extension => extension.Oid?.Value?.StartsWith(IcpBrasilOidPrefix, StringComparison.Ordinal) == true);
+    }
+
+    private static string SearchableCertificateText(X509Certificate2 certificate)
+    {
+        List<string> parts = [certificate.Subject, certificate.Issuer, CommonName(certificate) ?? string.Empty];
 
         foreach (X509Extension extension in certificate.Extensions)
         {
-            string formatted = extension.Format(multiLine: true);
-            string? cnpj = ExtractCnpj(formatted);
-            if (cnpj is not null)
+            if (extension.Oid?.Value is not null)
             {
-                return cnpj;
+                parts.Add(extension.Oid.Value);
+            }
+
+            if (extension.Oid?.FriendlyName is not null)
+            {
+                parts.Add(extension.Oid.FriendlyName);
+            }
+
+            try
+            {
+                parts.Add(extension.Format(multiLine: true));
+            }
+            catch (CryptographicException)
+            {
+                // Some provider extensions cannot be formatted outside their token context.
             }
         }
 
-        return null;
+        return string.Join(' ', parts);
     }
 
-    private static string? ExtractCnpj(string value)
+    private static string? CommonName(X509Certificate2 certificate)
     {
-        Match match = CnpjRegex.Match(value);
-        return match.Success ? match.Value : null;
+        string commonName = certificate.GetNameInfo(X509NameType.SimpleName, forIssuer: false).Trim();
+        if (!string.IsNullOrWhiteSpace(commonName))
+        {
+            return commonName;
+        }
+
+        const string prefix = "CN=";
+        string? subjectPart = certificate.Subject
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(part => part.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
+        return subjectPart is null ? null : subjectPart[prefix.Length..].Trim();
+    }
+
+    private static (string? Document, string? DocumentType) ExtractDocument(string value)
+    {
+        Match cnpj = CnpjRegex.Match(value);
+        if (cnpj.Success)
+        {
+            return (Digits(cnpj.Value), "cnpj");
+        }
+
+        Match cpf = CpfRegex.Match(value);
+        if (cpf.Success)
+        {
+            return (Digits(cpf.Value), "cpf");
+        }
+
+        return (null, null);
+    }
+
+    private static bool ContainsAny(string value, IEnumerable<string> needles)
+    {
+        return needles.Any(needle => value.Contains(needle, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string Digits(string value)
+    {
+        return Regex.Replace(value, @"\D", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(1));
     }
 
     private static StoreLocation ToStoreLocation(CertificateStoreScope scope)

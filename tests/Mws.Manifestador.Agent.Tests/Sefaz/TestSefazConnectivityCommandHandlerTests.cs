@@ -163,7 +163,17 @@ public sealed class TestSefazConnectivityCommandHandlerTests
             notAfter,
             hasPrivateKey,
             "12345678000195",
-            CertificateStoreScope.CurrentUser);
+            CertificateStoreScope.CurrentUser,
+            "Empresa Teste",
+            "12345678000195",
+            "cnpj",
+            false,
+            true,
+            true,
+            true,
+            "fiscal_candidate",
+            [],
+            ["Tipo A1/A3 nao confirmado automaticamente."]);
     }
 
     private static string FixturePath()

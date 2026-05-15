@@ -43,6 +43,14 @@ public sealed class CertificateValidator : ICertificateValidator
                 return CertificateValidationResult.Invalid(CertificateErrorCode.CertificateWithoutPrivateKey, "Certificate does not have a private key.", summary);
             }
 
+            if (!summary.IsFiscalCandidate)
+            {
+                return CertificateValidationResult.Invalid(
+                    CertificateErrorCode.CertificateInvalid,
+                    summary.RejectionReasons?.FirstOrDefault() ?? "Certificate is not a usable ICP-Brasil fiscal certificate.",
+                    summary);
+            }
+
             return CertificateValidationResult.Valid(summary);
         }
         catch (UnauthorizedAccessException exception)

@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Mws.Manifestador.Agent.Application.Configuration;
 using Mws.Manifestador.Agent.Application.Interfaces;
 using Mws.Manifestador.Agent.Infrastructure.Api;
+using Mws.Manifestador.Agent.Infrastructure.LocalStatus;
 using Mws.Manifestador.Agent.Infrastructure.Security;
 using Mws.Manifestador.Agent.Infrastructure.Storage;
 using Mws.Manifestador.Agent.Infrastructure.Windows;
@@ -24,6 +25,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IAgentCredentialStore, DpapiAgentCredentialStore>();
         services.AddSingleton<ProtectedPfxCertificateSecretStore>();
         services.AddSingleton<IAgentEnvironment, WindowsAgentEnvironment>();
+        services.AddSingleton<AgentLocalStatusService>();
         services.AddSingleton<ITemporaryXmlStorage, LocalTemporaryXmlStorage>();
 
         services.AddHttpClient<IAgentApiClient, LaravelAgentApiClient>()

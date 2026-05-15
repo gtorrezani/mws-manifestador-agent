@@ -41,10 +41,28 @@ O navegador nao pode instalar, iniciar ou executar software local automaticament
 7. Diagnostico
    - Versao do Agent.
    - API URL sanitizada.
+   - Status do Windows Service.
+   - Ultimo heartbeat e ultimo polling registrados localmente.
    - Usuario/processo.
    - Status de acesso ao Windows Certificate Store.
    - Contagem de certificados encontrados.
    - Link para logs locais.
+
+## Tray Monitor
+
+O MSI tambem instala `Mws.Manifestador.Agent.Tray.exe`, um monitor WinForms simples com `NotifyIcon`. Ele roda no contexto do usuario logado e deixa visivel que o Agent existe na maquina.
+
+Menu esperado:
+
+- Abrir Configurador.
+- Iniciar servico.
+- Reiniciar servico.
+- Parar servico.
+- Abrir pasta de logs.
+- Copiar diagnostico basico.
+- Sair do monitor.
+
+Sair do monitor nao para o Windows Service. Operacoes de servico podem exigir permissao administrativa e devem mostrar mensagem clara quando o Windows negar acesso.
 
 ## Tecnologia recomendada
 
@@ -61,7 +79,8 @@ Fluxo inicial recomendado:
 - Configurator executa elevado quando precisar instalar o Windows Service.
 - Configurator escreve configuracao nao sensivel, como API URL.
 - Configurator chama ativacao e salva credenciais via o mesmo mecanismo DPAPI usado pelo Agent.
-- Configurator inicia o servico e aguarda heartbeat ou consulta local de status.
+- Configurator inicia o servico e consulta `%ProgramData%\MWS Manifestador Agent\status.json`.
+- Tray e Configurator leem o mesmo status local sanitizado.
 
 Fluxo futuro:
 
@@ -107,5 +126,5 @@ Regras:
 - Definir icone, assinatura digital e publisher.
 - Melhorar teste de conectividade com endpoint dedicado de health.
 - Implementar fluxo de reparo/reinstalacao.
-- Implementar leitura segura de status local do servico.
+- Criar icone oficial para Configurator e Tray.
 - Definir estrategia de update assinado e rollback.

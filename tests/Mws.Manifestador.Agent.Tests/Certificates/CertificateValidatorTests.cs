@@ -45,11 +45,35 @@ public sealed class CertificateValidatorTests
         result.Certificate.Should().Be(summary);
     }
 
+    [Fact]
+    public async Task ValidateAsyncRejectsNonFiscalCandidateWithRejectionReason()
+    {
+        CertificateReference reference = CertificateReference.A3("ABC");
+        CertificateSummary summary = CreateSummary(
+            reference,
+            DateTimeOffset.UtcNow.AddDays(-1),
+            DateTimeOffset.UtcNow.AddYears(1),
+            true,
+            isFiscalCandidate: false,
+            classification: "system_certificate",
+            rejectionReasons: ["Emissor/cadeia nao indica ICP-Brasil."]);
+        CertificateValidator validator = new(new FakeCertificateProvider([summary]));
+
+        CertificateValidationResult result = await validator.ValidateAsync(reference, CancellationToken.None);
+
+        result.IsValid.Should().BeFalse();
+        result.ErrorCode.Should().Be(CertificateErrorCode.CertificateInvalid);
+        result.Message.Should().Be("Emissor/cadeia nao indica ICP-Brasil.");
+    }
+
     private static CertificateSummary CreateSummary(
         CertificateReference reference,
         DateTimeOffset notBefore,
         DateTimeOffset notAfter,
-        bool hasPrivateKey)
+        bool hasPrivateKey,
+        bool isFiscalCandidate = true,
+        string classification = "fiscal_candidate",
+        IReadOnlyCollection<string>? rejectionReasons = null)
     {
         return new CertificateSummary(
             reference,
@@ -61,7 +85,17 @@ public sealed class CertificateValidatorTests
             notAfter,
             hasPrivateKey,
             "12345678000195",
-            CertificateStoreScope.CurrentUser);
+            CertificateStoreScope.CurrentUser,
+            "Test",
+            "12345678000195",
+            "cnpj",
+            false,
+            true,
+            true,
+            isFiscalCandidate,
+            classification,
+            rejectionReasons ?? [],
+            isFiscalCandidate ? ["Tipo A1/A3 nao confirmado automaticamente."] : []);
     }
 
     private sealed class FakeCertificateProvider : ICertificateProvider

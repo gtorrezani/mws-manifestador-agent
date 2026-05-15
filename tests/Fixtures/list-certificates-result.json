@@ -1,32 +1,33 @@
 {
   "certificates": [
     {
-      "subject": "CN=Empresa Teste:12345678000195",
-      "issuer": "CN=AC Teste",
       "thumbprint": "ABC123456789",
+      "subject": "CN=Empresa Teste:12345678000195",
+      "issuer": "CN=AC SOLUTI ICP-Brasil",
+      "common_name": "Empresa Teste",
+      "document": "12345678000195",
+      "document_type": "cnpj",
       "serial_number": "SERIAL001",
+      "valid_from": "2025-01-01T00:00:00Z",
+      "valid_to": "2030-01-01T00:00:00Z",
       "not_before": "2025-01-01T00:00:00Z",
       "not_after": "2030-01-01T00:00:00Z",
       "has_private_key": true,
       "store_location": "CurrentUser",
+      "store_name": "My",
       "cnpj": "12345678000195",
       "is_expired": false,
+      "is_certificate_authority": false,
+      "is_fiscal_candidate": true,
+      "is_icp_brasil": true,
+      "is_usable_for_client_auth": true,
+      "classification": "fiscal_candidate",
+      "rejection_reasons": [],
+      "warnings": [
+        "Tipo A1/A3 nao confirmado automaticamente."
+      ],
       "is_valid": true,
       "validation_message": null
-    },
-    {
-      "subject": "CN=Certificado Vencido:98765432000110",
-      "issuer": "CN=AC Teste",
-      "thumbprint": "DEF987654321",
-      "serial_number": "SERIAL002",
-      "not_before": "2023-01-01T00:00:00Z",
-      "not_after": "2024-01-01T00:00:00Z",
-      "has_private_key": false,
-      "store_location": "LocalMachine",
-      "cnpj": "98765432000110",
-      "is_expired": true,
-      "is_valid": false,
-      "validation_message": "Certificate is expired."
     }
   ]
 }
