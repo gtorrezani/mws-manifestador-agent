@@ -214,3 +214,52 @@ Watch items before committing functional blocks:
 - `installer/wix/Package.wxs`: verify shortcut scope and uninstall behavior.
 - `scripts/build-installer.ps1`: installer build may generate artifacts under `artifacts/`; those must remain untracked.
 - Line ending warnings appeared for several text files because local Git is configured to rewrite LF as CRLF on checkout. Avoid committing purely line-ending churn unless a formatter requires it.
+
+## Rodada 1 - Local Status
+
+Execution date: 2026-05-15
+
+Commit target: `feat: add sanitized local agent status`
+
+### Files selected for the commit
+
+- `src/Mws.Manifestador.Agent.Infrastructure/LocalStatus/AgentLocalStatusService.cs`
+- `src/Mws.Manifestador.Agent.Infrastructure/LocalStatus/AgentLocalStatusSnapshot.cs`
+- `src/Mws.Manifestador.Agent.Infrastructure/LocalStatus/AgentLocalStatusUpdate.cs`
+- `src/Mws.Manifestador.Agent.Infrastructure/LocalStatus/AgentServiceState.cs`
+- `src/Mws.Manifestador.Agent.Infrastructure/InfrastructureServiceCollectionExtensions.cs`
+- `src/Mws.Manifestador.Agent.Infrastructure/Mws.Manifestador.Agent.Infrastructure.csproj`
+- `src/Mws.Manifestador.Agent.Worker/Services/AgentWorker.cs`
+- `tests/Mws.Manifestador.Agent.Tests/Infrastructure/AgentLocalStatusServiceTests.cs`
+- `docs/WORKTREE_INVENTORY.md`
+
+### Behavior implemented
+
+- Adds a local status service that stores a simple JSON status file under `%ProgramData%\MWS Manifestador Agent\status.json`.
+- Persists only operational status fields: agent id, installation id, API base URL, activation state, heartbeat/poll timestamps, version, service state, and sanitized last error message.
+- Sanitizes error messages containing sensitive terms such as secret, password, token, PIN, private key, and PFX before writing status.
+- Uses a temporary file plus replace move for status writes to reduce the chance of partial files.
+- Reads local API configuration and DPAPI credential-file presence without exposing credential contents.
+- Integrates the Worker minimally so startup, activation, heartbeat, polling, and operational errors update the status file.
+- Catches local status write failures in the Worker and logs a warning instead of letting status persistence take down the polling loop.
+
+### Scope decisions
+
+- Tray Monitor is explicitly left out of this commit.
+- Configurator UI/operations are explicitly left out of this commit.
+- Installer and WiX changes are explicitly left out of this commit.
+- Certificate classification/listing, SEFAZ, XML, SOAP, fixtures, and certificate tests are explicitly left out of this commit.
+- Broad installation documentation is left for a later docs block.
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git status -sb` | Confirmed branch `codex/agent-worktree-inventory` with pending local functional blocks. |
+| `git diff --name-status` | Confirmed broader dirty worktree and selected only LocalStatus/Worker/test/inventory files for this round. |
+| `git diff -- src/Mws.Manifestador.Agent.Infrastructure/LocalStatus src/Mws.Manifestador.Agent.Worker/Services/AgentWorker.cs tests/Mws.Manifestador.Agent.Tests/Infrastructure/AgentLocalStatusServiceTests.cs` | Reviewed the LocalStatus block before staging. |
+| `dotnet test Mws.Manifestador.Agent.sln --configuration Release --filter FullyQualifiedName~AgentLocalStatusServiceTests` | Passed: 3 tests, 0 failures, 0 skipped. |
+
+### Next recommended block
+
+Next prompt: create `feat: enhance windows certificate inventory classification`, limited to certificate summary/validator/list command/provider, the certificate fixture, and directly related tests.
