@@ -6,6 +6,12 @@ using Serilog;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
+string programDataConfig = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+    "MWS Manifestador Agent",
+    "appsettings.Local.json");
+builder.Configuration.AddJsonFile(programDataConfig, optional: true, reloadOnChange: true);
+
 builder.Services.AddWindowsService(static options =>
 {
     options.ServiceName = "MWS Manifestador NF-e Agent";

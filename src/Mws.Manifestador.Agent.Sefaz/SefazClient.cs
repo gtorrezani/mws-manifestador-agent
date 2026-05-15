@@ -27,7 +27,7 @@ public sealed class SefazClient : ISefazClient
     private readonly IXmlSigner xmlSigner;
     private readonly NfeXmlSchemaValidator schemaValidator;
     private readonly SoapEnvelopeBuilder soapEnvelopeBuilder;
-    private readonly SefazSoapTransport soapTransport;
+    private readonly ISefazSoapTransport soapTransport;
     private readonly DistributionResponseParser distributionParser;
     private readonly EventResponseParser eventParser;
     private readonly ISefazEndpointResolver endpointResolver;
@@ -43,7 +43,7 @@ public sealed class SefazClient : ISefazClient
         IXmlSigner xmlSigner,
         NfeXmlSchemaValidator schemaValidator,
         SoapEnvelopeBuilder soapEnvelopeBuilder,
-        SefazSoapTransport soapTransport,
+        ISefazSoapTransport soapTransport,
         DistributionResponseParser distributionParser,
         EventResponseParser eventParser,
         ISefazEndpointResolver endpointResolver,
@@ -83,7 +83,7 @@ public sealed class SefazClient : ISefazClient
             Stopwatch stopwatch = Stopwatch.StartNew();
             string soapEnvelope = soapEnvelopeBuilder.Build(endpoint, requestXml);
             xmlDiagnostics.Log("request", requestXml, query.CorrelationId);
-            string responseXml = await soapTransport.PostAsync(endpoint.Url, endpoint.SoapAction, soapEnvelope, certificate, cancellationToken).ConfigureAwait(false);
+            string responseXml = await soapTransport.PostAsync(endpoint, soapEnvelope, certificate, cancellationToken).ConfigureAwait(false);
             xmlDiagnostics.Log("response", responseXml, query.CorrelationId);
             stopwatch.Stop();
             DistributionResponse response = distributionParser.Parse(responseXml);
@@ -134,7 +134,7 @@ public sealed class SefazClient : ISefazClient
             Stopwatch stopwatch = Stopwatch.StartNew();
             string soapEnvelope = soapEnvelopeBuilder.Build(endpoint, signedXml);
             xmlDiagnostics.Log("request", signedXml, request.CorrelationId);
-            string responseXml = await soapTransport.PostAsync(endpoint.Url, endpoint.SoapAction, soapEnvelope, certificate, cancellationToken).ConfigureAwait(false);
+            string responseXml = await soapTransport.PostAsync(endpoint, soapEnvelope, certificate, cancellationToken).ConfigureAwait(false);
             xmlDiagnostics.Log("response", responseXml, request.CorrelationId);
             stopwatch.Stop();
             EventReceptionResponse response = eventParser.Parse(responseXml);
@@ -197,7 +197,7 @@ public sealed class SefazClient : ISefazClient
     private void Validate(string xml)
     {
         XmlValidationResult result = schemaValidator.Validate(xml);
-        if (!result.IsValid)
+        if (schemaValidator.ShouldFail(result))
         {
             throw new InvalidOperationException("NF-e XML schema validation failed: " + string.Join("; ", result.Errors));
         }

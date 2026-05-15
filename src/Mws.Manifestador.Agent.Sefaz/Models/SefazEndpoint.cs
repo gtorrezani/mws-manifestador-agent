@@ -1,4 +1,5 @@
 using Mws.Manifestador.Agent.Domain.Enums;
+using Mws.Manifestador.Agent.Sefaz.Soap;
 
 namespace Mws.Manifestador.Agent.Sefaz.Models;
 
@@ -9,4 +10,5 @@ public sealed record SefazEndpoint(
     Uri Url,
     string SoapAction,
     string OperationName,
-    string OperationNamespace);
+    string OperationNamespace,
+    SoapVersion SoapVersion = SoapVersion.Soap12);

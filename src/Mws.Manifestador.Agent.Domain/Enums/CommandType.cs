@@ -13,4 +13,5 @@ public enum CommandType
     TestCertificate,
     ListCertificates,
     TestSefazConnectivity,
+    AgentDiagnosticsRequested,
 }

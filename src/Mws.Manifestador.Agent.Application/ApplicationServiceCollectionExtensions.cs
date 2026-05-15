@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Mws.Manifestador.Agent.Application.Certificates;
 using Mws.Manifestador.Agent.Application.Commands;
+using Mws.Manifestador.Agent.Application.Diagnostics;
 using Mws.Manifestador.Agent.Application.DTOs;
 using Mws.Manifestador.Agent.Application.Interfaces;
 using Mws.Manifestador.Agent.Application.Services;
@@ -23,10 +24,11 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<PollingService>();
         services.AddSingleton<ICertificateSelector, InMemoryCompanyCertificateSelector>();
         services.AddSingleton<ICertificateValidator, CertificateValidator>();
+        services.AddSingleton<AgentDiagnosticsCollector>();
 
         services.AddSingleton<ICommandHandler, ListCertificatesCommandHandler>();
         services.AddSingleton<ICommandHandler, TestCertificateCommandHandler>();
-        AddSefazCommandHandler(services, CommandType.SyncFiscalDocuments);
+        services.AddSingleton<ICommandHandler, AgentDiagnosticsCommandHandler>();
         AddSefazCommandHandler(services, CommandType.ManifestAcknowledgement);
         AddSefazCommandHandler(services, CommandType.ManifestConfirmation);
         AddSefazCommandHandler(services, CommandType.ManifestUnknown);
@@ -34,7 +36,6 @@ public static class ApplicationServiceCollectionExtensions
         AddSefazCommandHandler(services, CommandType.DownloadXmlByAccessKey);
         AddSefazCommandHandler(services, CommandType.DownloadXmlByPeriod);
         AddSefazCommandHandler(services, CommandType.ExportXmlZip);
-        AddSefazCommandHandler(services, CommandType.TestSefazConnectivity);
 
         return services;
     }

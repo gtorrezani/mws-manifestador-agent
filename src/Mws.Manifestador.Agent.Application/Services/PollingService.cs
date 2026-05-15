@@ -22,6 +22,7 @@ public sealed class PollingService
         CommandType.TestCertificate,
         CommandType.ListCertificates,
         CommandType.TestSefazConnectivity,
+        CommandType.AgentDiagnosticsRequested,
     ];
 
     private readonly IAgentApiClient apiClient;

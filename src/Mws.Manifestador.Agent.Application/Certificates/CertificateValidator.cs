@@ -19,7 +19,8 @@ public sealed class CertificateValidator : ICertificateValidator
         {
             IReadOnlyCollection<CertificateSummary> certificates = await provider.ListAsync(cancellationToken).ConfigureAwait(false);
             CertificateSummary? summary = certificates.FirstOrDefault(certificate =>
-                string.Equals(certificate.Thumbprint, reference.Thumbprint, StringComparison.OrdinalIgnoreCase));
+                string.Equals(certificate.Thumbprint, reference.Thumbprint, StringComparison.OrdinalIgnoreCase) &&
+                (reference.StoreScope is null || certificate.StoreScope == reference.StoreScope));
 
             if (summary is null)
             {

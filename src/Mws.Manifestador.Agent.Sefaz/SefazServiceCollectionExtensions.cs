@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Mws.Manifestador.Agent.Application.Interfaces;
 using Mws.Manifestador.Agent.Sefaz.Certificates;
 using Mws.Manifestador.Agent.Sefaz.Configuration;
+using Mws.Manifestador.Agent.Sefaz.Connectivity;
 using Mws.Manifestador.Agent.Sefaz.Distribution;
 using Mws.Manifestador.Agent.Sefaz.Endpoints;
 using Mws.Manifestador.Agent.Sefaz.Events;
@@ -36,7 +37,9 @@ public static class SefazServiceCollectionExtensions
         services.AddSingleton<EventResponseParser>();
         services.AddSingleton<ISefazEndpointResolver, SefazEndpointResolver>();
         services.AddSingleton<ISefazClient, SefazClient>();
-        services.AddHttpClient<SefazSoapTransport>();
+        services.AddSingleton<ICommandHandler, SyncFiscalDocumentsCommandHandler>();
+        services.AddSingleton<ICommandHandler, TestSefazConnectivityCommandHandler>();
+        services.AddHttpClient<ISefazSoapTransport, SefazSoapTransport>();
 
         return services;
     }

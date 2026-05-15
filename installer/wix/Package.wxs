@@ -1,0 +1,74 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="MWS Manifestador NF-e Agent"
+    Manufacturer="MWS"
+    Version="$(var.ProductVersion)"
+    UpgradeCode="{0FE6629B-7041-4D9A-8E7D-7E355C28C65B}"
+    Scope="perMachine">
+
+    <MajorUpgrade DowngradeErrorMessage="Uma versao mais recente do MWS Manifestador Agent ja esta instalada." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="MwsProgramFilesFolder" Name="MWS">
+        <Directory Id="INSTALLFOLDER" Name="MWS Manifestador Agent" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Id="ProgramDataFolder" Name="MWS Manifestador Agent" />
+    </StandardDirectory>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="WorkerServiceComponent" Guid="{717555D2-012D-45D3-8C6C-1EA8E672E2E5}" Bitness="always64">
+        <File
+          Id="WorkerServiceExecutable"
+          Source="$(var.PublishDir)\Mws.Manifestador.Agent.Worker.exe"
+          KeyPath="yes" />
+        <ServiceInstall
+          Id="MwsManifestadorAgentServiceInstall"
+          Type="ownProcess"
+          Name="MWSManifestadorAgent"
+          DisplayName="MWS Manifestador NF-e Agent"
+          Description="Servico local para certificados A3 e integracao SEFAZ do MWS Manifestador NF-e"
+          Start="auto"
+          Account="LocalSystem"
+          ErrorControl="normal" />
+        <ServiceControl
+          Id="MwsManifestadorAgentServiceControl"
+          Name="MWSManifestadorAgent"
+          Start="install"
+          Stop="both"
+          Remove="uninstall"
+          Wait="yes" />
+      </Component>
+
+      <Component Id="ConfiguratorComponent" Guid="{6B9238B1-E48E-4D57-8784-A6EFCEFC64A2}" Bitness="always64">
+        <File
+          Id="ConfiguratorExecutable"
+          Source="$(var.PublishDir)\Mws.Manifestador.Agent.Configurator.exe"
+          KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="ProgramDataFolder">
+      <Component Id="ProgramDataComponent" Guid="{85D5E266-8015-4499-B99A-8053D34648F1}" Bitness="always64">
+        <CreateFolder />
+        <RegistryValue
+          Root="HKLM"
+          Key="Software\MWS\MWS Manifestador Agent"
+          Name="ProgramDataFolder"
+          Type="string"
+          Value="[ProgramDataFolder]"
+          KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="MainFeature" Title="MWS Manifestador Agent" Level="1">
+      <ComponentRef Id="WorkerServiceComponent" />
+      <ComponentRef Id="ConfiguratorComponent" />
+      <ComponentRef Id="ProgramDataComponent" />
+      <ComponentGroupRef Id="PublishedFiles" />
+    </Feature>
+  </Package>
+</Wix>

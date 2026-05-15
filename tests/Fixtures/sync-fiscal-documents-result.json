@@ -1,0 +1,26 @@
+{
+  "service": "nfe_distribution",
+  "environment": "homologation",
+  "uf": "SP",
+  "endpoint": "https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx",
+  "soap_action": "http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse",
+  "last_nsu": "000000000000011",
+  "max_nsu": "000000000000011",
+  "sefaz_status_code": "138",
+  "sefaz_message": "Documento localizado",
+  "documents": [
+    {
+      "nsu": "000000000000011",
+      "schema": "resNFe_v1.01.xsd",
+      "access_key": "35260512345678000195550010000000011000000010",
+      "issuer_cnpj": "12345678000195",
+      "issuer_name": "Emitente Homologacao",
+      "recipient_cnpj": "12345678000195",
+      "issued_at": "2026-05-14T13:15:00Z",
+      "total_amount": "123.45",
+      "summary_xml": "<resNFe xmlns=\"http://www.portalfiscal.inf.br/nfe\"><chNFe>35260512345678000195550010000000011000000010</chNFe><CNPJ>12345678000195</CNPJ><xNome>Emitente Homologacao</xNome><dhEmi>2026-05-14T10:15:00-03:00</dhEmi><vNF>123.45</vNF><cSitNFe>1</cSitNFe></resNFe>",
+      "full_xml": null,
+      "content_hash": "synthetic"
+    }
+  ]
+}

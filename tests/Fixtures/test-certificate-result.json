@@ -1,0 +1,16 @@
+{
+  "certificate": {
+    "thumbprint": "ABC123456789",
+    "store_location": "CurrentUser",
+    "subject": "CN=Empresa Teste:12345678000195",
+    "issuer": "CN=AC Teste",
+    "serial_number": "SERIAL001",
+    "not_before": "2025-01-01T00:00:00Z",
+    "not_after": "2030-01-01T00:00:00Z",
+    "has_private_key": true,
+    "cnpj": "12345678000195",
+    "is_expired": false,
+    "is_valid": true,
+    "validation_message": "Certificado validado com sucesso."
+  }
+}

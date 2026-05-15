@@ -1,0 +1,98 @@
+<Window x:Class="Mws.Manifestador.Agent.Configurator.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MWS Agent - Assistente de Configuracao"
+        Height="520"
+        Width="720"
+        MinHeight="480"
+        MinWidth="640"
+        WindowStartupLocation="CenterScreen">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="Assistente de Configuracao do MWS Agent"
+                       FontSize="24"
+                       FontWeight="SemiBold" />
+            <TextBlock Text="Informe a URL da API e o codigo de ativacao gerado na Web. O assistente salva credenciais com DPAPI e reinicia o servico local."
+                       Margin="0,8,0,0"
+                       TextWrapping="Wrap"
+                       Foreground="#46555f" />
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="0,0,0,14">
+                <TextBlock Text="URL da API" FontWeight="SemiBold" />
+                <TextBox x:Name="ApiBaseUrlTextBox"
+                         Height="34"
+                         Margin="0,6,0,0"
+                         VerticalContentAlignment="Center"
+                         Text="https://api.example.com" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="1" Margin="0,0,0,14">
+                <TextBlock Text="Codigo de ativacao" FontWeight="SemiBold" />
+                <TextBox x:Name="ActivationCodeTextBox"
+                         Height="34"
+                         Margin="0,6,0,0"
+                         VerticalContentAlignment="Center" />
+            </StackPanel>
+
+            <WrapPanel Grid.Row="2" Margin="0,4,0,18">
+                <Button x:Name="TestConnectionButton"
+                        Content="Testar conexao"
+                        Width="140"
+                        Height="36"
+                        Margin="0,0,8,0"
+                        Click="TestConnectionButton_Click" />
+                <Button x:Name="ActivateButton"
+                        Content="Ativar Agent"
+                        Width="140"
+                        Height="36"
+                        Margin="0,0,8,0"
+                        Click="ActivateButton_Click" />
+                <Button x:Name="RestartServiceButton"
+                        Content="Iniciar/Reiniciar servico"
+                        Width="190"
+                        Height="36"
+                        Click="RestartServiceButton_Click" />
+            </WrapPanel>
+
+            <Border Grid.Row="3"
+                    Padding="14"
+                    BorderBrush="#d7dee4"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Background="#f8fafb">
+                <StackPanel>
+                    <TextBlock Text="Status atual" FontWeight="SemiBold" />
+                    <TextBlock x:Name="StatusTextBlock"
+                               Margin="0,8,0,0"
+                               Text="Aguardando configuracao."
+                               TextWrapping="Wrap" />
+                    <TextBlock Margin="0,16,0,0"
+                               Foreground="#6a7680"
+                               TextWrapping="Wrap"
+                               Text="Este assistente nao solicita PIN de certificado A3 e nao exibe segredos retornados pela API." />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <TextBlock Grid.Row="2"
+                   Margin="0,18,0,0"
+                   Foreground="#6a7680"
+                   TextWrapping="Wrap"
+                   Text="O navegador apenas baixa o instalador. A instalacao e a ativacao acontecem localmente no Windows." />
+    </Grid>
+</Window>

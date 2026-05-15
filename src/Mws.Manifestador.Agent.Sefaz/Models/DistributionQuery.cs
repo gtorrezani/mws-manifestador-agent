@@ -1,3 +1,4 @@
+using Mws.Manifestador.Agent.Application.Certificates;
 using Mws.Manifestador.Agent.Domain.Enums;
 using Mws.Manifestador.Agent.Domain.ValueObjects;
 
@@ -11,4 +12,5 @@ public sealed record DistributionQuery(
     string? Nsu,
     AccessKey? AccessKey,
     string CertificateThumbprint,
+    CertificateStoreScope? CertificateStoreScope,
     string CorrelationId);

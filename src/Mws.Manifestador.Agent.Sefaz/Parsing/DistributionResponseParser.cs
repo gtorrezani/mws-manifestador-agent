@@ -31,8 +31,8 @@ public sealed class DistributionResponseParser
             string schema = docZip.Attribute("schema")?.Value ?? string.Empty;
             string nsu = docZip.Attribute("NSU")?.Value ?? string.Empty;
             string xml = decompressor.DecompressDocZip(docZip.Value);
-            FiscalDocumentSummary? summary = fiscalDocumentParser.TryParseSummary(xml);
-            FiscalDocumentFull? full = fiscalDocumentParser.TryParseFull(xml);
+            FiscalDocumentSummary? summary = TryParseSummary(xml);
+            FiscalDocumentFull? full = TryParseFull(xml);
             documents.Add(new DistributedDocument(schema, nsu, summary?.AccessKey ?? full?.AccessKey, xml, summary, full));
         }
 
@@ -46,5 +46,37 @@ public sealed class DistributionResponseParser
     private static string? GetValue(XElement parent, string name)
     {
         return parent.Element(Nfe + name)?.Value;
+    }
+
+    private FiscalDocumentSummary? TryParseSummary(string xml)
+    {
+        try
+        {
+            return fiscalDocumentParser.TryParseSummary(xml);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+    }
+
+    private FiscalDocumentFull? TryParseFull(string xml)
+    {
+        try
+        {
+            return fiscalDocumentParser.TryParseFull(xml);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
     }
 }

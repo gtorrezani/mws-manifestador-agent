@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Mws.Manifestador.Agent.Application.Certificates;
 using Mws.Manifestador.Agent.Domain.Entities;
 using Mws.Manifestador.Agent.Domain.Enums;
 using Mws.Manifestador.Agent.Domain.ValueObjects;
@@ -21,6 +22,7 @@ public sealed class CommandPayloadReader
             GetOptionalString(payload, "nsu"),
             GetOptionalString(payload, "access_key") is { } accessKey ? new AccessKey(accessKey) : null,
             GetRequiredString(payload, "certificate_thumbprint"),
+            ReadStoreScope(payload),
             ReadCorrelationId(payload, command));
     }
 
@@ -63,6 +65,18 @@ public sealed class CommandPayloadReader
     private static string ReadCorrelationId(JsonElement payload, AgentCommand command)
     {
         return GetOptionalString(payload, "correlation_id") ?? command.Uuid.ToString("D");
+    }
+
+    private static CertificateStoreScope? ReadStoreScope(JsonElement payload)
+    {
+        string? value = GetOptionalString(payload, "store_location");
+
+        return value switch
+        {
+            "CurrentUser" or "current_user" => CertificateStoreScope.CurrentUser,
+            "LocalMachine" or "local_machine" => CertificateStoreScope.LocalMachine,
+            _ => null,
+        };
     }
 
     private static string GetRequiredString(JsonElement payload, string propertyName)

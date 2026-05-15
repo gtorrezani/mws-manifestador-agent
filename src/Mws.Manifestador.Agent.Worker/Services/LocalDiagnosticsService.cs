@@ -4,13 +4,14 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 using Mws.Manifestador.Agent.Application.Certificates;
+using Mws.Manifestador.Agent.Application.Diagnostics;
 using Mws.Manifestador.Agent.Application.Interfaces;
 
 namespace Mws.Manifestador.Agent.Worker.Services;
 
 public sealed class LocalDiagnosticsService : BackgroundService
 {
-    private static readonly string[] DiagnosticEndpoints = ["/health", "/certificates"];
+    private static readonly string[] DiagnosticEndpoints = ["/health", "/certificates", "/diagnostics"];
 
     private static readonly Action<ILogger, string, Exception?> LogDiagnosticsStarted =
         LoggerMessage.Define<string>(LogLevel.Information, new EventId(2000, nameof(LogDiagnosticsStarted)), "Local diagnostics listening on {ListenUrl}");
@@ -25,16 +26,19 @@ public sealed class LocalDiagnosticsService : BackgroundService
     };
 
     private readonly ICertificateProvider certificateProvider;
+    private readonly AgentDiagnosticsCollector diagnosticsCollector;
     private readonly ILogger<LocalDiagnosticsService> logger;
     private readonly LocalDiagnosticsOptions options;
 
     public LocalDiagnosticsService(
         IOptions<LocalDiagnosticsOptions> options,
         ICertificateProvider certificateProvider,
+        AgentDiagnosticsCollector diagnosticsCollector,
         ILogger<LocalDiagnosticsService> logger)
     {
         this.options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         this.certificateProvider = certificateProvider ?? throw new ArgumentNullException(nameof(certificateProvider));
+        this.diagnosticsCollector = diagnosticsCollector ?? throw new ArgumentNullException(nameof(diagnosticsCollector));
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -44,6 +48,11 @@ public sealed class LocalDiagnosticsService : BackgroundService
         {
             LogDiagnosticsDisabled(logger, null);
             return;
+        }
+
+        if (!IsLoopback(options.ListenUrl))
+        {
+            throw new InvalidOperationException("Local diagnostics must listen only on 127.0.0.1, localhost or ::1.");
         }
 
         string listenUrl = NormalizePrefix(options.ListenUrl);
@@ -72,6 +81,11 @@ public sealed class LocalDiagnosticsService : BackgroundService
             IReadOnlyCollection<CertificateSummary> certificates = await certificateProvider.ListAsync(cancellationToken).ConfigureAwait(false);
             body = JsonSerializer.Serialize(new { certificates }, JsonOptions);
         }
+        else if (path.Equals("/diagnostics", StringComparison.OrdinalIgnoreCase))
+        {
+            AgentDiagnosticsSnapshot diagnostics = await diagnosticsCollector.CollectAsync(cancellationToken).ConfigureAwait(false);
+            body = JsonSerializer.Serialize(new { diagnostics }, JsonOptions);
+        }
         else
         {
             body = JsonSerializer.Serialize(new { status = "available", endpoints = DiagnosticEndpoints }, JsonOptions);
@@ -91,5 +105,12 @@ public sealed class LocalDiagnosticsService : BackgroundService
         string prefix = value.ToString();
 
         return prefix.EndsWith('/') ? prefix : prefix + "/";
+    }
+
+    private static bool IsLoopback(Uri value)
+    {
+        return IPAddress.TryParse(value.Host, out IPAddress? address)
+            ? IPAddress.IsLoopback(address)
+            : value.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase);
     }
 }

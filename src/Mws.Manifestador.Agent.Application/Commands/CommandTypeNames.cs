@@ -17,6 +17,7 @@ public static class CommandTypeNames
         [CommandType.TestCertificate] = "test_certificate",
         [CommandType.ListCertificates] = "list_certificates",
         [CommandType.TestSefazConnectivity] = "test_sefaz_connectivity",
+        [CommandType.AgentDiagnosticsRequested] = "agent_diagnostics_requested",
     };
 
     public static string ToWireName(CommandType type) => Names[type];

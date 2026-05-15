@@ -1,6 +1,4 @@
-using Mws.Manifestador.Agent.Application.Certificates;
-
-namespace Mws.Manifestador.Agent.Sefaz.Certificates;
+namespace Mws.Manifestador.Agent.Application.Certificates;
 
 public sealed class CertificateProviderException : Exception
 {

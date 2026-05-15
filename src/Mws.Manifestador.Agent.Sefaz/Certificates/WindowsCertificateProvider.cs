@@ -30,7 +30,7 @@ public sealed class WindowsCertificateProvider : ICertificateProvider
         AddCertificates(certificates, CertificateStoreScope.LocalMachine, cancellationToken);
 
         return Task.FromResult<IReadOnlyCollection<CertificateSummary>>(certificates
-            .GroupBy(static certificate => certificate.Thumbprint, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(static certificate => new { certificate.Thumbprint, certificate.StoreScope })
             .Select(static group => group.First())
             .OrderBy(static certificate => certificate.Subject, StringComparer.Ordinal)
             .ToArray());
@@ -66,7 +66,9 @@ public sealed class WindowsCertificateProvider : ICertificateProvider
         }
 
         CertificateSummary? summary = (await ListAsync(cancellationToken).ConfigureAwait(false))
-            .FirstOrDefault(item => string.Equals(item.Thumbprint, reference.Thumbprint, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(item =>
+                string.Equals(item.Thumbprint, reference.Thumbprint, StringComparison.OrdinalIgnoreCase) &&
+                (reference.StoreScope is null || item.StoreScope == reference.StoreScope));
 
         if (summary?.NotAfter < DateTimeOffset.UtcNow)
         {
@@ -182,11 +184,32 @@ public sealed class WindowsCertificateProvider : ICertificateProvider
     {
         try
         {
+            byte[] payload = "mws-manifestador-certificate-test"u8.ToArray();
             using RSA? rsa = certificate.GetRSAPrivateKey();
-            if (rsa is null)
+            if (rsa is not null)
             {
-                throw new CertificateProviderException(CertificateErrorCode.CertificateProviderAccessDenied, "RSA private key provider is not accessible.");
+                byte[] signature = rsa.SignData(payload, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                if (!rsa.VerifyData(payload, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1))
+                {
+                    throw new CertificateProviderException(CertificateErrorCode.CertificateProviderAccessDenied, "RSA private key signature verification failed.");
+                }
+
+                return;
             }
+
+            using ECDsa? ecdsa = certificate.GetECDsaPrivateKey();
+            if (ecdsa is not null)
+            {
+                byte[] signature = ecdsa.SignData(payload, HashAlgorithmName.SHA256);
+                if (!ecdsa.VerifyData(payload, signature, HashAlgorithmName.SHA256))
+                {
+                    throw new CertificateProviderException(CertificateErrorCode.CertificateProviderAccessDenied, "ECDSA private key signature verification failed.");
+                }
+
+                return;
+            }
+
+            throw new CertificateProviderException(CertificateErrorCode.CertificateProviderAccessDenied, "Private key provider is not accessible.");
         }
         catch (CryptographicException exception)
         {

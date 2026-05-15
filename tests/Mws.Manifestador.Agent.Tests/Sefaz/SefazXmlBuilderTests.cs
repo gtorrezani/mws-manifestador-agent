@@ -22,6 +22,7 @@ public sealed class SefazXmlBuilderTests
             null,
             null,
             "thumb",
+            null,
             "corr-1");
 
         string xml = new DistributionXmlBuilder().Build(query);

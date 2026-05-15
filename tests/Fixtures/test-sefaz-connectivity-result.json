@@ -1,0 +1,16 @@
+{
+  "mode": "configuration_only",
+  "environment": "homologation",
+  "uf": "SP",
+  "endpoint": "https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx",
+  "certificate": {
+    "thumbprint": "ABC123456789",
+    "store_location": "CurrentUser",
+    "subject": "CN=Empresa Teste:12345678000195",
+    "not_after": "2030-01-01T00:00:00Z",
+    "is_valid": true
+  },
+  "sefaz_status_code": null,
+  "sefaz_message": "Configuração validada com sucesso.",
+  "duration_ms": 0
+}
