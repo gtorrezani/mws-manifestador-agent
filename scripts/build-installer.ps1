@@ -12,6 +12,7 @@ $wixIntermediateDir = Join-Path $repoRoot 'artifacts\wix'
 $generatedWix = Join-Path $wixIntermediateDir 'GeneratedFiles.wxs'
 $workerProject = Join-Path $repoRoot 'src\Mws.Manifestador.Agent.Worker\Mws.Manifestador.Agent.Worker.csproj'
 $configuratorProject = Join-Path $repoRoot 'src\Mws.Manifestador.Agent.Configurator\Mws.Manifestador.Agent.Configurator.csproj'
+$trayProject = Join-Path $repoRoot 'src\Mws.Manifestador.Agent.Tray\Mws.Manifestador.Agent.Tray.csproj'
 $wixProject = Join-Path $repoRoot 'installer\wix\Mws.Manifestador.Agent.Installer.wixproj'
 $targetMsi = Join-Path $installerDir 'MWS-Manifestador-Agent-Setup.msi'
 $targetChecksum = "$targetMsi.sha256"
@@ -96,6 +97,7 @@ New-Item -ItemType Directory -Path $publishDir, $installerDir, $wixIntermediateD
 
 Invoke-CheckedCommand { dotnet publish $workerProject --configuration $Configuration --runtime $Runtime --self-contained true --output $publishDir }
 Invoke-CheckedCommand { dotnet publish $configuratorProject --configuration $Configuration --runtime $Runtime --self-contained true --output $publishDir }
+Invoke-CheckedCommand { dotnet publish $trayProject --configuration $Configuration --runtime $Runtime --self-contained true --output $publishDir }
 
 $supportDir = Join-Path $publishDir 'Support'
 New-Item -ItemType Directory -Path $supportDir | Out-Null
@@ -114,7 +116,7 @@ Write-DirectoryComponents `
     -ComponentIds $componentIds `
     -DirectoryPath $publishDir `
     -DirectoryId 'INSTALLFOLDER' `
-    -ExcludedFileNames @('Mws.Manifestador.Agent.Worker.exe', 'Mws.Manifestador.Agent.Configurator.exe')
+    -ExcludedFileNames @('Mws.Manifestador.Agent.Worker.exe', 'Mws.Manifestador.Agent.Configurator.exe', 'Mws.Manifestador.Agent.Tray.exe')
 [void] $builder.AppendLine('    </DirectoryRef>')
 [void] $builder.AppendLine('  </Fragment>')
 [void] $builder.AppendLine('  <Fragment>')

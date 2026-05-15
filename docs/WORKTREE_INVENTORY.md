@@ -408,3 +408,47 @@ Commit target: `feat: add agent tray monitor`
 ### Next recommended block
 
 Next prompt: create `feat: package tray monitor in windows installer`, limited to `installer/wix/Package.wxs`, `scripts/build-installer.ps1`, and inventory update. Keep broad docs in the final docs commit.
+
+## Rodada 5 - Windows Installer Packaging
+
+Execution date: 2026-05-15
+
+Commit target: `feat: package tray monitor in windows installer`
+
+### Files selected for the commit
+
+- `installer/wix/Package.wxs`
+- `scripts/build-installer.ps1`
+- `docs/WORKTREE_INVENTORY.md`
+
+### Behavior implemented
+
+- Publishes the Tray Monitor project as part of the local installer build.
+- Installs `Mws.Manifestador.Agent.Tray.exe` as a user-facing application, not as a Windows Service.
+- Keeps `MWSManifestadorAgent` as the only installed Windows Service.
+- Adds Start Menu shortcuts for the Configurator, Tray Monitor, and logs folder.
+- Adds a Startup Folder shortcut for the Tray Monitor with an HKCU key path.
+- Keeps Worker, Configurator, and Tray primary executables as explicit WiX components and excludes them from generated file harvesting to avoid duplicate components.
+- Emits MSI and checksum artifacts under `artifacts\`, which is ignored by Git.
+
+### Scope decisions
+
+- Broad installation/operations documentation remains out of this commit.
+- Tray source code, Configurator, Worker, LocalStatus infrastructure, certificate classification/listing, SEFAZ, XML, and SOAP are unchanged in this round.
+- No MSI, EXE, ZIP, NUPKG, `bin/`, `obj/`, `publish/`, `artifacts/`, logs, certificates, keys, tokens, PINs, passwords, or fiscal XML were staged.
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git status -sb` | Confirmed branch `codex/agent-worktree-inventory`; only broad docs plus WiX/script remained dirty before this round. |
+| `git diff --name-status` | Confirmed installer files and broad docs were the only pending tracked changes. |
+| `git diff -- installer/wix/Package.wxs scripts/build-installer.ps1` | Reviewed only WiX/script changes before validation. |
+| `rg -n "secret|token|password|senha|pin|private key|pfx|p12|pem|xml|http://" installer scripts/build-installer.ps1` | Found only expected WiX XML namespace strings; no secret value or sensitive material. |
+| `powershell -NoProfile -ExecutionPolicy Bypass -Command "[scriptblock]::Create((Get-Content -Raw scripts/build-installer.ps1)) \| Out-Null"` | Passed PowerShell parse validation. |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-installer.ps1` | Passed; published Worker, Configurator, and Tray, built the WiX MSI with 0 warnings and 0 errors, and wrote artifacts only under ignored `artifacts\`. |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality.ps1` | Passed: build Release 0 warnings, 0 errors; tests 85 passed, 0 failed, 0 skipped. |
+
+### Next recommended block
+
+Next prompt: create `docs: update agent installation operations docs`, limited to the remaining installation/operations documentation files and inventory update. Keep code and installer packaging out unless documentation validation reveals a broken reference.

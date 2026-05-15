@@ -15,6 +15,31 @@
       </Directory>
     </StandardDirectory>
 
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="MwsStartMenuFolder" Name="MWS">
+        <Directory Id="MwsAgentStartMenuFolder" Name="MWS Manifestador Agent" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="StartupFolder">
+      <Component Id="TrayStartupShortcutComponent" Guid="{1ED9217D-63B1-47B3-8759-8025F9CD869E}">
+        <Shortcut
+          Id="TrayStartupShortcut"
+          Name="MWS Agent Tray Monitor"
+          Description="Iniciar o monitor de bandeja do MWS Agent"
+          Target="[INSTALLFOLDER]Mws.Manifestador.Agent.Tray.exe"
+          WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue
+          Root="HKCU"
+          Key="Software\MWS\MWS Manifestador Agent"
+          Name="TrayStartupShortcut"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+    <StandardDirectory Id="SystemFolder" />
+
     <StandardDirectory Id="CommonAppDataFolder">
       <Directory Id="ProgramDataFolder" Name="MWS Manifestador Agent" />
     </StandardDirectory>
@@ -49,6 +74,13 @@
           Source="$(var.PublishDir)\Mws.Manifestador.Agent.Configurator.exe"
           KeyPath="yes" />
       </Component>
+
+      <Component Id="TrayComponent" Guid="{005CB322-DF68-458C-9FC3-3205428D8B17}" Bitness="always64">
+        <File
+          Id="TrayExecutable"
+          Source="$(var.PublishDir)\Mws.Manifestador.Agent.Tray.exe"
+          KeyPath="yes" />
+      </Component>
     </DirectoryRef>
 
     <DirectoryRef Id="ProgramDataFolder">
@@ -64,10 +96,45 @@
       </Component>
     </DirectoryRef>
 
+    <DirectoryRef Id="MwsAgentStartMenuFolder">
+      <Component Id="StartMenuShortcutsComponent" Guid="{BB6D1E58-EC66-4428-A346-74B7C9EA892A}">
+        <Shortcut
+          Id="ConfiguratorStartMenuShortcut"
+          Name="MWS Agent Configurator"
+          Description="Abrir o configurador local do MWS Agent"
+          Target="[INSTALLFOLDER]Mws.Manifestador.Agent.Configurator.exe"
+          WorkingDirectory="INSTALLFOLDER" />
+        <Shortcut
+          Id="TrayStartMenuShortcut"
+          Name="MWS Agent Tray Monitor"
+          Description="Abrir o monitor de bandeja do MWS Agent"
+          Target="[INSTALLFOLDER]Mws.Manifestador.Agent.Tray.exe"
+          WorkingDirectory="INSTALLFOLDER" />
+        <Shortcut
+          Id="LogsStartMenuShortcut"
+          Name="MWS Agent Logs"
+          Description="Abrir a pasta de logs do MWS Agent"
+          Target="[SystemFolder]explorer.exe"
+          Arguments="&quot;[ProgramDataFolder]logs&quot;" />
+        <RemoveFolder Id="RemoveMwsAgentStartMenuFolder" On="uninstall" />
+        <RemoveFolder Id="RemoveMwsStartMenuFolder" Directory="MwsStartMenuFolder" On="uninstall" />
+        <RegistryValue
+          Root="HKCU"
+          Key="Software\MWS\MWS Manifestador Agent"
+          Name="StartMenuShortcuts"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
     <Feature Id="MainFeature" Title="MWS Manifestador Agent" Level="1">
       <ComponentRef Id="WorkerServiceComponent" />
       <ComponentRef Id="ConfiguratorComponent" />
+      <ComponentRef Id="TrayComponent" />
       <ComponentRef Id="ProgramDataComponent" />
+      <ComponentRef Id="StartMenuShortcutsComponent" />
+      <ComponentRef Id="TrayStartupShortcutComponent" />
       <ComponentGroupRef Id="PublishedFiles" />
     </Feature>
   </Package>
