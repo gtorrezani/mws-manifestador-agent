@@ -42,7 +42,8 @@ A API cloud nao inicia conexao inbound para a rede do cliente. Ela nao atravessa
 Curto prazo:
 
 - gerar MSI real via WiX Toolset;
-- instalar Worker + Configurator via MSI;
+- instalar Worker + Configurator + Tray Monitor via MSI;
+- criar atalhos visiveis no Menu Iniciar para Configurator, Tray e logs;
 - manter scripts PowerShell para suporte e homologacao.
 
 Medio prazo:
@@ -69,6 +70,16 @@ Nunca gravar:
 Em producao, o Worker roda como Windows Service com startup automatico. Em desenvolvimento, use console mode para facilitar logs, breakpoints e prompts de certificado A3.
 
 O MSI WiX instala o servico `MWSManifestadorAgent`, com display name `MWS Manifestador NF-e Agent`, em modo Automatic. Upgrade deve ser feito por major upgrade do MSI e nao deve apagar `%ProgramData%`.
+
+O usuario deve perceber a instalacao por tres pontos locais:
+
+- Menu Iniciar com `MWS Agent Configurator`.
+- Menu Iniciar com `MWS Agent Tray Monitor`.
+- Icone de bandeja quando o Tray estiver em execucao.
+
+O Tray roda no contexto do usuario logado. Ele mostra status basico, abre o Configurator, abre logs e tenta iniciar/parar/reiniciar o servico quando a conta tem permissao. Sair do Tray fecha apenas o monitor visual, nao o Windows Service.
+
+O Worker grava status sanitizado em `%ProgramData%\MWS Manifestador Agent\status.json` sempre que inicia, ativa, envia heartbeat, faz polling ou registra erro operacional relevante. Esse arquivo nao deve conter segredo, PIN, token, private key, PFX, XML fiscal ou activation code.
 
 Conta de servico:
 

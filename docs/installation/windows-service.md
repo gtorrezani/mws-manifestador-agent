@@ -42,9 +42,16 @@ O MSI tambem instala:
 
 - `Mws.Manifestador.Agent.Worker.exe`
 - `Mws.Manifestador.Agent.Configurator.exe`
+- `Mws.Manifestador.Agent.Tray.exe`
 - dependencias publicadas self-contained;
 - scripts de suporte em `Support`;
 - documentacao operacional local em `Support`.
+
+O instalador cria atalhos no Menu Iniciar:
+
+- `MWS Agent Configurator`: abre o assistente de ativacao e status local.
+- `MWS Agent Tray Monitor`: abre o icone de bandeja.
+- `MWS Agent Logs`: abre a pasta de logs em `%ProgramData%`.
 
 Para ativar pelo fluxo principal, execute:
 
@@ -53,6 +60,44 @@ C:\Program Files\MWS\MWS Manifestador Agent\Mws.Manifestador.Agent.Configurator.
 ```
 
 Informe a URL da API e o codigo de ativacao gerado na Web. O Configurator chama a API, salva credenciais com DPAPI em `%ProgramData%` e permite iniciar/reiniciar o servico.
+
+## Tray Monitor
+
+O Tray Monitor roda no contexto do usuario logado e mostra um icone na bandeja do Windows. Ele nao substitui o Windows Service e sair do monitor nao para o servico.
+
+Menu disponivel:
+
+- Abrir Configurador.
+- Iniciar servico.
+- Reiniciar servico.
+- Parar servico.
+- Abrir pasta de logs.
+- Copiar diagnostico basico.
+- Sair do monitor.
+
+Controlar o servico pode exigir permissao administrativa. Quando a instalacao e elevada por uma conta de TI diferente do usuario final, a inicializacao automatica por Startup Folder pode ficar vinculada ao usuario que executou o MSI. Nesse caso, abra o monitor pelo Menu Iniciar ou configure politica corporativa de inicializacao.
+
+## Status local
+
+O Worker grava status operacional sanitizado em:
+
+```text
+%ProgramData%\MWS Manifestador Agent\status.json
+```
+
+Campos permitidos:
+
+- `agent_id`
+- `installation_id`
+- `api_base_url`
+- `activated`
+- `last_heartbeat_at`
+- `last_poll_at`
+- `version`
+- `service_status`
+- `last_error_message` sanitizada
+
+O arquivo nao deve conter segredo, PIN, private key, PFX, token, XML fiscal ou activation code.
 
 ## Instalacao como servico por suporte tecnico
 

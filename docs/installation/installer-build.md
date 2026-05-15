@@ -10,14 +10,21 @@ Execute no repositorio do Agent:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-installer.ps1 -ProductVersion 1.0.0
 ```
 
+Para a versao atual desta frente:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-installer.ps1 -ProductVersion 1.0.1
+```
+
 O script:
 
 1. limpa `artifacts/publish/win-x64` e `artifacts/installer`;
 2. publica o Worker self-contained para `win-x64`;
 3. publica o Configurator WPF self-contained para `win-x64`;
-4. inclui scripts/documentacao de suporte;
-5. gera o MSI com WiX;
-6. grava checksum SHA-256.
+4. publica o Tray Monitor WinForms self-contained para `win-x64`;
+5. inclui scripts/documentacao de suporte;
+6. gera o MSI com WiX;
+7. grava checksum SHA-256.
 
 Saidas:
 
@@ -38,10 +45,19 @@ Conteudo:
 
 - Worker Service;
 - Agent Configurator;
+- Tray Monitor;
 - DLLs e runtime self-contained;
 - `appsettings.json` base;
 - scripts de suporte em `Support`;
 - documentacao operacional local em `Support`.
+
+Atalhos instalados no Menu Iniciar:
+
+- `MWS Agent Configurator`;
+- `MWS Agent Tray Monitor`;
+- `MWS Agent Logs`.
+
+O MSI tambem cria um atalho do Tray na Startup Folder do usuario instalador. Em instalacoes elevadas por uma conta de TI, valide se o atalho ficou no perfil correto do usuario final ou distribua o startup por GPO/Intune.
 
 Dados mutaveis ficam em:
 
@@ -72,6 +88,14 @@ C:\Program Files\MWS\MWS Manifestador Agent\Mws.Manifestador.Agent.Configurator.
 
 O Configurator recebe URL da API e activation code, chama `/api/agent/v1/activate`, salva credenciais com DPAPI e reinicia o servico. O codigo de ativacao nao e gravado em configuracao persistente.
 
+O Worker grava status local sanitizado em:
+
+```text
+%ProgramData%\MWS Manifestador Agent\status.json
+```
+
+Esse arquivo pode ser lido pelo Configurator e pelo Tray. Ele nao deve conter segredo, PIN, token, private key, PFX, XML fiscal ou activation code.
+
 ## Publicar na Web local
 
 No repositorio Web:
@@ -87,7 +111,7 @@ Configure `.env`:
 MWS_AGENT_INSTALLER_LOCAL_DISK=local
 MWS_AGENT_INSTALLER_LOCAL_PATH=installers/MWS-Manifestador-Agent-Setup.msi
 MWS_AGENT_INSTALLER_FILE_NAME=MWS-Manifestador-Agent-Setup.msi
-MWS_AGENT_INSTALLER_VERSION=1.0.0
+MWS_AGENT_INSTALLER_VERSION=1.0.1
 MWS_AGENT_INSTALLER_SHA256=<sha256>
 ```
 

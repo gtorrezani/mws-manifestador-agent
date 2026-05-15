@@ -452,3 +452,49 @@ Commit target: `feat: package tray monitor in windows installer`
 ### Next recommended block
 
 Next prompt: create `docs: update agent installation operations docs`, limited to the remaining installation/operations documentation files and inventory update. Keep code and installer packaging out unless documentation validation reveals a broken reference.
+
+## Rodada 6 - Installation Operations Documentation
+
+Execution date: 2026-05-15
+
+Commit target: `docs: update agent installation operations docs`
+
+### Files selected for the commit
+
+- `docs/installation/agent-configurator-gui.md`
+- `docs/installation/agent-installation-and-operations.md`
+- `docs/installation/installer-build.md`
+- `docs/installation/windows-service.md`
+- `docs/WORKTREE_INVENTORY.md`
+
+### Content documented
+
+- Configurator purpose, API/base URL setup, activation-code handling, local sanitized status, service actions, log access, and administrative-permission guidance.
+- Operational model with Worker Service, Configurator, Tray Monitor, activation flow, certificate inventory, local status path, logs, and A1/A3 safety rules.
+- Installer build flow for Worker, Configurator, and Tray Monitor, including expected outputs under ignored `artifacts\` and the rule that MSI/checksum artifacts are not committed.
+- Windows Service operation, service name/account model, Tray relationship, start/stop/restart guidance, logs, troubleshooting, and CurrentUser vs LocalMachine certificate-store limitations.
+
+### Scope decisions
+
+- No source code, scripts, WiX, solution, project files, generated artifacts, or installer binaries were included.
+- Existing loopback URLs and placeholder activation/API examples remain documentation-only examples.
+- No real secret, token, password, PIN, certificate, private key, PFX/P12/PEM content, fiscal XML, or log payload was added.
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git status -sb` | Confirmed branch `codex/agent-worktree-inventory`; only the four installation docs were dirty before inventory update. |
+| `git diff --name-status` | Confirmed only the four documentation files were pending. |
+| `git diff -- docs/installation/agent-configurator-gui.md docs/installation/agent-installation-and-operations.md docs/installation/installer-build.md docs/installation/windows-service.md` | Reviewed all documentation changes before staging. |
+| `rg -n "secret|token|password|senha|pin|private key|pfx|p12|pem|xml|http://" docs/installation` | Found only generic safety guidance, placeholder/local examples, and loopback diagnostic URLs; no real sensitive value. |
+| `rg -n "Ã|Â|�|Configurator|Tray Monitor|Worker Service|Windows Store|ICP-Brasil|A1/A3|activation code|status.json|MWSManifestadorAgent" docs/installation/...` | Reviewed terminology and encoding-sensitive lines. The apparent `serviço` mojibake was terminal rendering; PowerShell read the file correctly. |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality.ps1` | Passed: build Release 0 warnings, 0 errors; tests 85 passed, 0 failed, 0 skipped. |
+
+### Final worktree expectation
+
+After this commit, no tracked worktree changes should remain. Ignored build outputs under `artifacts\`, `bin\`, and `obj\` may exist locally from validation commands but must remain untracked and unstaged.
+
+### Next recommended block
+
+Next prompt: run final review for branch `codex/agent-worktree-inventory`, verify a clean tracked worktree, rerun the gate, inspect commit history, and decide whether to open a PR or merge the cycle branch.
